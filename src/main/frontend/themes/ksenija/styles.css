@@ -1,0 +1,51 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* =========================================================
+   LUMO DESIGN TOKENS global color + typography overrides
+   ========================================================= */
+
+
+html {
+
+    /* Font */
+    --lumo-font-family: 'Inter', sans-serif;
+    --lumo-font-size-m: 0.875rem;
+    --lumo-font-size-s: 0.8rem;
+    --lumo-font-size-xs: 0.75rem;
+    --lumo-font-size-l: 1rem;
+    --lumo-font-size-xl: 1.2rem;
+    --lumo-font-size-xxl: 1.5rem;
+
+    /* Brand — blue */
+    --lumo-primary-color: #2563eb;
+    --lumo-primary-text-color: #2563eb;
+    --lumo-primary-color-50pct: #2563eb80;
+    --lumo-primary-color-10pct: #2563eb1a;
+
+    /* Backgrounds */
+    --lumo-base-color: #ffffff;
+    --lumo-tint-5pct:  #f8fafc;
+    --lumo-tint-10pct: #f1f5f9;
+    --lumo-tint-20pct: #e2e8f0;
+    --lumo-tint-50pct: #cbd5e1;
+
+    /* Text */
+    --lumo-header-text-color:    #0f172a;
+    --lumo-body-text-color:      #1e293b;
+    --lumo-secondary-text-color: #64748b;
+    --lumo-disabled-text-color:  #94a3b8;
+
+    /* Borders */
+    --lumo-contrast-10pct: #e2e8f0;
+    --lumo-contrast-20pct: #cbd5e1;
+
+    /* Shadows */
+    --lumo-box-shadow-s: 0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.07);
+    --lumo-box-shadow-m: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+
+    /* Border radius */
+    --lumo-border-radius-m: 8px;
+    --lumo-border-radius-s: 5px;
+    --lumo-border-radius-l: 12px;
+}
