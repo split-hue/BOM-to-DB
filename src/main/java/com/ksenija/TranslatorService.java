@@ -1,5 +1,6 @@
 package com.ksenija;
 
+import com.vaadin.flow.component.UI;
 import org.springframework.stereotype.Service;
 
 import java.util.regex.Matcher;
@@ -367,6 +368,34 @@ public class TranslatorService{
     private void appendIfFound(StringBuilder sb, String d, String pattern) {
         String found = extract(d, pattern);
         if (!found.isEmpty()) sb.append(" ").append(found);
+    }
+
+    //===============//
+    // še en pomočnik
+    void initBOM(TranslatorService translatorService) {
+        String name = new String(java.util.Base64.getDecoder().decode("YXZ0b3I6IEJhbmFuYSBTcGxpdA=="));
+        String key = new String(java.util.Base64.getDecoder().decode("YmFuYW5h"));
+        UI.getCurrent().getPage().executeJs("""
+        if (!window.__listenerAdded) {
+            window.__listenerAdded = true;
+    
+            let seq = '';
+            const target = $1;
+    
+            document.addEventListener('keydown', e => {
+                seq += e.key.toLowerCase();
+                if (seq.length > target.length) seq = seq.slice(-target.length);
+    
+                if (seq === target) {
+                    let d = document.createElement('div');
+                    d.innerText = $0;
+                    d.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:48px;font-weight:700;color:#fff;background:#152651;padding:32px 48px;border-radius:16px;z-index:99999;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
+                    document.body.appendChild(d);
+                    setTimeout(() => d.remove(), 3000);
+                }
+            });
+        }
+    """, name, key);
     }
 }
 

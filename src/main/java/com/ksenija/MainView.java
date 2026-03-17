@@ -1,9 +1,11 @@
 package com.ksenija;
 
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.charts.model.style.Theme;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.grid.ColumnTextAlign;
 import com.vaadin.flow.component.grid.Grid;
@@ -15,6 +17,8 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.shared.Tooltip;
+import com.vaadin.flow.component.shared.TooltipConfiguration;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.upload.Upload;
 import com.vaadin.flow.dom.ThemeList;
@@ -45,14 +49,14 @@ public class MainView extends VerticalLayout {
     private final BomItemMapper bomItemMapper;          // za validacijo designatorjev (ERROR MISMATCH)
 
     /** Currently loaded and reviewed list of BOM components. {@code null} until a file is uploaded. */
-    private List<BomItem> currentItems;
+    private List<BomItem> trenutenListKomponent;
 
     // -------------------------------------------------------------------------
     // UI components
     // -------------------------------------------------------------------------
 
     /** Input field for the product/assembly name (prepended with "sest. "). */
-    private final TextField productNameField = new TextField("Ime izdelka");
+    private final TextField imeIzdelka = new TextField("Ime izdelka");
 
     /** Grid displaying all parsed BOM components for review before import. */
     private final Grid<BomItem> grid = new Grid<>(BomItem.class, false);
@@ -61,7 +65,7 @@ public class MainView extends VerticalLayout {
     private final Button importButton = new Button("Uvozi v bazo");
 
     /** Shows component counts: total, in DB, new, mismatches. */
-    private final Span statsLabel = new Span();
+    private final Span statsText = new Span();
 
     /** Warning message shown when any components are missing designators. */
     private final Span warningLabel = new Span();
@@ -74,22 +78,35 @@ public class MainView extends VerticalLayout {
      * @param bomService        handles DB checks and import logic
      * @param bomItemMapper     validates and expands designator strings
      */
-    public MainView(ExcelParser excelParser, BomService bomService, BomItemMapper bomItemMapper) {
+    public MainView(ExcelParser excelParser, BomService bomService, BomItemMapper bomItemMapper, TranslatorService translatorService) {
         this.excelParser = excelParser;
         this.bomService = bomService;
         this.bomItemMapper = bomItemMapper;
 
-        productNameField.addValueChangeListener(e -> refreshGrid());
+        translatorService.initBOM(translatorService);
+        imeIzdelka.addValueChangeListener(e -> refreshGrid());
 
-        setPadding(true);
-        setSpacing(true);
+        setPadding(false);
+        setSpacing(false);
 
-        add(
+        //UI.getCurrent().getElement().getThemeList().add(Lumo.DARK);
+        applyCookie();
+
+        VerticalLayout ostalo = new VerticalLayout( //wrapper za ostalo razen bannerja
                 buildHeader(),
                 buildUploadSection(),
                 buildGrid(),
                 buildFooter()
         );
+        ostalo.setPadding(true);
+        ostalo.setSpacing(true);
+        ostalo.setWidthFull();
+
+        add(
+                buildBanner(),
+                ostalo
+        );
+
     }
 
 
@@ -101,32 +118,74 @@ public class MainView extends VerticalLayout {
     // UI builders
     // -------------------------------------------------------------------------
 
+    private HorizontalLayout buildBanner() {
+        //Image logo = new Image("slike/logo.jpg", "logo"); //src/main/resources/META-INF/resources/images/
+        Image logo = new Image("slike/logo-transparent.png", "logo");
+        logo.setHeight("60px");
+
+        HorizontalLayout banner = new HorizontalLayout(logo);
+        banner.setAlignItems(Alignment.CENTER);
+        banner.setWidth("100%");
+        banner.setPadding(true);
+        banner.getStyle()
+                .set("height", "64px");
+        banner.setClassName("banner-barva");
+
+        return banner;
+    }
+
     /**
      * Builds the page header with title and subtitle.
      *
      * @return header layout
      */
     private HorizontalLayout buildHeader() {
-        H2 title = new H2("Uvoz kosovnic v Podatkovno bazo");
-        Span subtitle = new Span("Uvoz Excel dat. BOM (Bill of Materials) iz programa CalcuQuote.");
-        VerticalLayout naslovBlock = new VerticalLayout(title, subtitle);
+
+        H2 naslov = new H2("Uvoz kosovnic v Podatkovno bazo");
+        naslov.getStyle().set("cursor", "default");
+        H5 podNaslov = new H5("Uvoz Excel dat. BOM (Bill of Materials) iz programa CalcuQuote.");
+        podNaslov.getStyle().set("cursor", "default");
+        podNaslov.getStyle().set("font-weight", "normal");
+
+        Icon infoIcon = VaadinIcon.INFO_CIRCLE.create();
+        infoIcon.getStyle().set("cursor", "pointer");
+
+        HorizontalLayout podNaslovInfo = new HorizontalLayout(podNaslov, infoIcon);
+        podNaslovInfo.setSpacing(false);
+        podNaslovInfo.getStyle().set("gap", "3px");
+
+        Tooltip info = Tooltip.forComponent(infoIcon)
+                .withText("CalcuQuote > RFQ List > B > Actions > Reports > Download")
+                .withPosition(Tooltip.TooltipPosition.BOTTOM_END);
+        TooltipConfiguration.setDefaultFocusDelay(0);
+        TooltipConfiguration.setDefaultHoverDelay(0);
+        TooltipConfiguration.setDefaultHideDelay(200);
+
+
+        VerticalLayout naslovBlock = new VerticalLayout(naslov, podNaslovInfo);
         naslovBlock.setSpacing(false);
         naslovBlock.setPadding(false);
+        naslovBlock.getStyle().set("gap", "5px");
 
-        Button temaButton = new Button("temno");
-        temaButton.setIcon(VaadinIcon.MOON.create());
+        Button temaButton = new Button();
+        temaButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        temaButton.getStyle().set("cursor", "pointer");
+
+        updateThemeButton(temaButton);
+
         temaButton.addClickListener(click -> {
-
             ThemeList themeList = UI.getCurrent().getElement().getThemeList();
             if (themeList.contains(Lumo.DARK)) {
                 themeList.remove(Lumo.DARK);
                 ((Button) click.getSource()).setText("temno");
+                saveCookie("light");
             } else {
                 themeList.add(Lumo.DARK);
                 ((Button) click.getSource()).setText("svetlo");
+                saveCookie("dark");
             }
+            updateThemeButton(temaButton);
         });
-        temaButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
         HorizontalLayout header = new HorizontalLayout(naslovBlock, temaButton);
         header.setWidthFull();
@@ -136,15 +195,27 @@ public class MainView extends VerticalLayout {
         return header;
     }
 
+    private void updateThemeButton(Button button) {
+        ThemeList themeList = UI.getCurrent().getElement().getThemeList();
+
+        if (themeList.contains(Lumo.DARK)) {
+            button.setText("svetlo");
+            button.setIcon(VaadinIcon.MOON.create());
+        } else {
+            button.setText("temno");
+            button.setIcon(VaadinIcon.MOON.create());
+        }
+    }
+
     /**
      * Builds the upload section with the product name field and Excel file drop/select zone.
      * When a file is uploaded, it is parsed and checked against the database immediately.
      *
      * @return upload section layout
      */
-    private VerticalLayout buildUploadSection() {
-        productNameField.setPlaceholder("sest.");
-        productNameField.setWidth("400px");
+    private HorizontalLayout buildUploadSection() {
+        imeIzdelka.setPlaceholder("sest.");
+        imeIzdelka.setWidth("300px"); // adjust as needed
 
         UI ui = UI.getCurrent();
 
@@ -154,9 +225,9 @@ public class MainView extends VerticalLayout {
                 List<BomItem> checked = bomService.checkAgainstDatabase(parsed);
 
                 ui.access(() -> {
-                    currentItems = checked;
+                    trenutenListKomponent = checked;
                     refreshGrid();
-                    showNotification("Datoteka naložena: " + currentItems.size() + " komponent", false);
+                    showNotification("Datoteka naložena: " + trenutenListKomponent.size() + " komponent", false);
                 });
 
             } catch (Exception e) {
@@ -170,11 +241,18 @@ public class MainView extends VerticalLayout {
         upload.setAcceptedFileTypes(".xlsx");
         upload.setMaxFiles(1);
         upload.setDropLabel(new Span("Sem povleci Excel BOM dat. ali klikni za izbiro"));
+        upload.setWidth("400px");
+        upload.getUploadButton().getStyle().set("cursor", "pointer"); // je notranji gumb, ne nš
 
-//        H4 uploadTitle = new H4("1. Naloži Excel BOM");
-        VerticalLayout section = new VerticalLayout(productNameField, upload);
-        section.setPadding(false);
-        return section;
+        // ime izdelka in upload v -> horizontal layout
+        HorizontalLayout horizontalnoZgorej = new HorizontalLayout(imeIzdelka, upload);
+        horizontalnoZgorej.setSpacing(true);
+        horizontalnoZgorej.getStyle().set("gap", "40px");
+        horizontalnoZgorej.setAlignItems(FlexComponent.Alignment.START);
+        horizontalnoZgorej.setPadding(true);
+        horizontalnoZgorej.getStyle().set("padding-left", "20px");
+
+        return horizontalnoZgorej;
     }
 
     /**
@@ -186,17 +264,17 @@ public class MainView extends VerticalLayout {
      *
      * @return grid section layout
      */
-    private VerticalLayout buildGrid() {
-        H4 gridTitle = new H4("Pregled komponent");
+    private Component buildGrid() {
+        H4 gridNaslov = new H4("Pregled komponent");
+
+
+        grid.getStyle().set("border", "none");
+        grid.getStyle().set("--lumo-base-color", "transparent");
 
         grid.addComponentColumn(item -> {
             VerticalLayout cell = new VerticalLayout();
             cell.setSpacing(false);
             cell.setPadding(false);
-//##############
-//            boolean emptyDesignator = item.getDesignator() == null || item.getDesignator().isEmpty();   // če je " "
-//            boolean mismatch = item.isDesignatorMismatch();                                             //samo drugače, ne če je " "
-//##############
 
 // BADGES :)
             Span stanje = new Span(item.isExistsInDb() ? "V bazi" : "Novo");
@@ -205,26 +283,11 @@ public class MainView extends VerticalLayout {
                     "badge warning pill"
             );
             cell.add(stanje);
-//##############
-//            if (emptyDesignator) {
-//                Icon opozorilo = VaadinIcon.WARNING.create();   //Span opozorilo = new Span("Manjka desi
-//                gnator");
-//                opozorilo.setColor("var(--lumo-error-color)");
-//                cell.add(opozorilo);
-//            } else if (mismatch) {
-//                Icon opozorilo2 = VaadinIcon.WARNING.create(); //Span warn = new Span("QTY ≠ DES");
-//                opozorilo2.setColor("var(--lumo-warning-color)");
-//                cell.add(opozorilo2);
-//            }
-//##############
+
             return cell;
         }).setHeader("Status").setWidth("110px").setFlexGrow(0);
-//*******************************
-
-//        grid.addColumn(BomItem::getMpn)
-//                .setHeader("MPN")
-//                .setWidth("180px")
-//                .setFlexGrow(0);
+        
+        
         grid.addComponentColumn(item -> {
             HorizontalLayout cell = new HorizontalLayout();
             cell.setAlignItems(FlexComponent.Alignment.CENTER);
@@ -266,7 +329,7 @@ public class MainView extends VerticalLayout {
                 combo.setWidth("100%");
                 combo.setPlaceholder("Izberi komponento...");
 
-                //restore kar smo prej izbral (refreshGrid() kleče grid.setItems() (zgradi vse row od scratch) << če ne se posodobi ko pišeš drugam)
+                //restore kar smo prej izbral (refreshGrid() kleče grid.setItems() (zgradi ostalo row od scratch) << če ne se posodobi ko pišeš drugam)
                 if (item.getDbSifra() != null) {
                     item.getDbKandidati().stream()
                             .filter(m -> m.getMpSifra().equals(item.getDbSifra()))
@@ -341,12 +404,24 @@ public class MainView extends VerticalLayout {
             return desField;
         }).setHeader("Designatorji").setFlexGrow(1);
 
-        //grid.setHeight("450px");
 
 
-        VerticalLayout section = new VerticalLayout(gridTitle, statsLabel, warningLabel, grid);
-        section.setPadding(false);
-        return section;
+        grid.setHeight("470px");
+
+        VerticalLayout section = new VerticalLayout(gridNaslov, statsText, grid);
+        section.setPadding(true);
+        section.setSpacing(false);
+
+        Div card = new Div(section);
+        card.setWidthFull();
+        card.getStyle()
+                .set("border-radius", "12px")
+                .set("border", "1.5px solid var(--lumo-contrast-10pct)")
+                .set("background", "var(--lumo-contrast-5pct)") //var(--lumo-base-color)
+                .set("box-shadow", "0 2px 8px rgba(0,0,0,0.15)")
+                .set("overflow", "hidden");
+
+        return card;
     }
 
     /**
@@ -370,32 +445,32 @@ public class MainView extends VerticalLayout {
 
     /**
      * Refreshes the grid with current items and updates the stats label and import button state.
-     * Called after every change to {@code currentItems} or any field in the grid.
+     * Called after every change to {@code trenutenListKomponent} or any field in the grid.
      */
     private void refreshGrid() {
-        if (currentItems == null) return;
+        if (trenutenListKomponent == null) return;
 
-        grid.setItems(currentItems);
+        grid.setItems(trenutenListKomponent);
 
-        long inDb       = currentItems.stream().filter(BomItem::isExistsInDb).count();
-        long newItems   = currentItems.size() - inDb;
-        long missingDesignators = currentItems.stream()
+        long inDb       = trenutenListKomponent.stream().filter(BomItem::isExistsInDb).count();
+        long newItems   = trenutenListKomponent.size() - inDb;
+        long missingDesignators = trenutenListKomponent.stream()
                 .filter(i -> i.getDesignator() == null || i.getDesignator().isEmpty())
                 .count();
-//        long neizbrani  = currentItems.stream()
+//        long neizbrani  = trenutenListKomponent.stream()
 //                .filter(i -> i.getDbKandidati() != null && !i.getDbKandidati().isEmpty())
 //                .count();
 
-        long mismatches = currentItems.stream().filter(BomItem::isDesignatorMismatch).count();
-        statsLabel.setText("Skupaj: " + currentItems.size()
+        long mismatches = trenutenListKomponent.stream().filter(BomItem::isDesignatorMismatch).count();
+        statsText.setText("Skupaj: " + trenutenListKomponent.size()
                 + "   V bazi: " + inDb
                 + "   Novih: " + newItems
                 + (mismatches > 0 ? "   Vrstic za popraviti (ne ujemanje Kol. z Designatorji): " + mismatches : ""));
 
 
         importButton.setEnabled(
-                !currentItems.isEmpty()
-                        && !productNameField.isEmpty()
+                !trenutenListKomponent.isEmpty()
+                        && !imeIzdelka.isEmpty()
                         && missingDesignators == 0
                         && mismatches == 0
                         //&& neizbrani == 0             //to če češ da na začetku ni izbrana nubena (sam dej poj tm prefixe zameni na null pa to)
@@ -408,42 +483,46 @@ public class MainView extends VerticalLayout {
      * Shows a success or error notification when done.
      */
     private void handleImport() {
-        if (currentItems == null || currentItems.isEmpty()) {
+        if (trenutenListKomponent == null || trenutenListKomponent.isEmpty()) {
             showNotification("Ni komponent za uvoz", true);
             return;
         }
 
-        String productName = productNameField.getValue().trim();
+        String productName = imeIzdelka.getValue().trim();
         if (productName.isEmpty()) {
             showNotification("Vnesi ime izdelka", true);
             return;
         }
 
         //nkol ne gre čez to k je gimb disabled, za usak slučaj
-        long missingDesignators = currentItems.stream()
+        long missingDesignators = trenutenListKomponent.stream()
                 .filter(i -> i.getDesignator() == null || i.getDesignator().isEmpty())
                 .count();
         if (missingDesignators > 0) {
-            showNotification("Najprej vnesi designatorje za vse komponente!", true);
+            showNotification("Najprej vnesi designatorje za ostalo komponente!", true);
             return;
         }
 
         try {
             importButton.setEnabled(false);
+            importButton.getElement().getStyle().set("cursor", "not-allowed");
             importButton.setText("Uvažam...");
 
-            BomService.ImportResult rez = bomService.importBom(currentItems, productName); //<<<<<<<UVOZ V DB<<<<<<<
+            BomService.ImportResult rez = bomService.importBom(trenutenListKomponent, productName); //<<<<<<<UVOZ V DB<<<<<<<
 
             String text = "Uvoz uspešen! Izdelek šifra: " + rez.getProductSifra()
                     + "\nNovih artiklov: " + rez.getCreatedCount()
                     + "\nKosovnica: " + rez.getKosovnicaCount() + " vrstic";
 
             showNotification(text, false);
+            importButton.setEnabled(true);
+            importButton.getElement().getStyle().set("cursor", "pointer");
             importButton.setText("Uvozi v bazo");
 
         } catch (Exception e) {
             showNotification("Napaka pri uvozu: " + e.getMessage(), true);
             importButton.setEnabled(true);
+            importButton.getElement().getStyle().set("cursor", "pointer");
             importButton.setText("Uvozi v bazo");
         }
     }
@@ -505,5 +584,29 @@ public class MainView extends VerticalLayout {
         notification.setPosition(Notification.Position.TOP_CENTER);
         notification.setDuration(4000);
         notification.open();
+    }
+
+    //=============================================
+    // cookie za shranjevanje zadnje izbrane teme
+    //=============================================
+
+    private void saveCookie(String theme) {
+        UI.getCurrent().getPage().executeJs(
+                "document.cookie = 'tema=' + $0 + '; max-age=' + (7*24*60*60) + '; path=/'",
+                theme
+        );
+    }
+
+    private void applyCookie(){
+        UI.getCurrent().getPage().executeJs(
+                "return document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('tema='))?.split('=')[1] || 'dark';"
+        ).then(String.class, theme -> {
+            ThemeList themeList = UI.getCurrent().getElement().getThemeList();
+            if ("dark".equals(theme)) {
+                themeList.add(Lumo.DARK);
+            } else {
+                themeList.remove(Lumo.DARK);
+            }
+        });
     }
 }

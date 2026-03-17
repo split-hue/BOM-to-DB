@@ -1,9 +1,37 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* =========================================================
-   LUMO DESIGN TOKENS global color + typography overrides
-   ========================================================= */
+
+.banner-barva {
+    background: linear-gradient(
+            120deg,
+            rgba(var(--banner-color),1) 0%,
+            rgba(var(--banner-color),1) 20%,
+            rgba(var(--banner-color),0) 30%
+        );
+}
+
+
+
+/*za sprmeinjanje barve Header-ja v gridu, ob spremembi teme*/
+vaadin-grid::part(header-cell) {
+    background-color: var(--grid-header-bg);
+}
+html {
+    --grid-header-bg: #f3f5f7;
+    --banner-color: 21,38,81;
+}
+:host([theme~=dark]), [theme~=dark] {
+    --grid-header-bg: #2c3d52;
+    --banner-color: 255, 255, 255;
+    }
+
+
+vaadin-tooltip-overlay::part(content) {
+    text-align: center;
+}
+
+
 
 
 html {
@@ -29,6 +57,7 @@ html {
     --lumo-tint-10pct: #f1f5f9;
     --lumo-tint-20pct: #e2e8f0;
     --lumo-tint-50pct: #cbd5e1;
+    --lumo-tint: #2c3d52;
 
     /* Text */
     --lumo-header-text-color:    #0f172a;
