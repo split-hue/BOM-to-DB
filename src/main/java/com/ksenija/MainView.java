@@ -5,7 +5,6 @@ import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.charts.model.style.Theme;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.grid.ColumnTextAlign;
 import com.vaadin.flow.component.grid.Grid;
@@ -27,6 +26,7 @@ import com.vaadin.flow.server.streams.UploadHandler;
 import com.vaadin.flow.theme.lumo.Lumo;
 
 
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -69,6 +69,9 @@ public class MainView extends VerticalLayout {
 
     /** Warning message shown when any components are missing designators. */
     private final Span warningLabel = new Span();
+
+    /** Warning message shown ONLY after the BOM import, not on every refreshGrid() */
+    private boolean warningsShow = false;
 
 
     /**
@@ -119,7 +122,6 @@ public class MainView extends VerticalLayout {
     // -------------------------------------------------------------------------
 
     private HorizontalLayout buildBanner() {
-        //Image logo = new Image("slike/logo.jpg", "logo"); //src/main/resources/META-INF/resources/images/
         Image logo = new Image("slike/logo-transparent.png", "logo");
         logo.setHeight("60px");
 
@@ -155,7 +157,7 @@ public class MainView extends VerticalLayout {
         podNaslovInfo.getStyle().set("gap", "3px");
 
         Tooltip info = Tooltip.forComponent(infoIcon)
-                .withText("CalcuQuote > RFQ List > B > Actions > Reports > Download")
+                .withText("CalcuQuote > (RFQ List) 'B' > Actions > Reports > Download")
                 .withPosition(Tooltip.TooltipPosition.BOTTOM_END);
         TooltipConfiguration.setDefaultFocusDelay(0);
         TooltipConfiguration.setDefaultHoverDelay(0);
@@ -226,6 +228,7 @@ public class MainView extends VerticalLayout {
 
                 ui.access(() -> {
                     trenutenListKomponent = checked;
+                    warningsShow = false;
                     refreshGrid();
                     showNotification("Datoteka naložena: " + trenutenListKomponent.size() + " komponent", false);
                 });
@@ -290,9 +293,10 @@ public class MainView extends VerticalLayout {
         
         grid.addComponentColumn(item -> {
             HorizontalLayout cell = new HorizontalLayout();
-            cell.setAlignItems(FlexComponent.Alignment.CENTER);
+            cell.setAlignItems(Alignment.CENTER);
             cell.setSpacing(true);
             cell.setPadding(false);
+
 
             boolean emptyDesignator = item.getDesignator() == null || item.getDesignator().isEmpty();
             boolean mismatch = item.isDesignatorMismatch();
@@ -302,16 +306,33 @@ public class MainView extends VerticalLayout {
                 warn.setColor("var(--lumo-error-color)");
                 warn.setSize("16px");
                 cell.add(warn);
+
+                Tooltip info = Tooltip.forComponent(warn)
+                        .withText("Št. designatorjev (Designatorji) je prazno")
+                        .withPosition(Tooltip.TooltipPosition.BOTTOM_END);
+                TooltipConfiguration.setDefaultFocusDelay(0);
+                TooltipConfiguration.setDefaultHoverDelay(0);
+                TooltipConfiguration.setDefaultHideDelay(200);
             } else if (mismatch) {
                 Icon warn = VaadinIcon.WARNING.create();
                 warn.setColor("var(--lumo-warning-color)");
                 warn.setSize("16px");
                 cell.add(warn);
+
+                Tooltip info = Tooltip.forComponent(warn)
+                        .withText("Št. designatorjev (Designatorji) se ne ujema s količino (Kol.)")
+                        .withPosition(Tooltip.TooltipPosition.BOTTOM_END);
+                TooltipConfiguration.setDefaultFocusDelay(0);
+                TooltipConfiguration.setDefaultHoverDelay(0);
+                TooltipConfiguration.setDefaultHideDelay(200);
             }
+
 
             cell.add(new Span(item.getMpn()));
             return cell;
-        }).setHeader("MPN").setWidth("200px").setFlexGrow(0);
+        }).setHeader("MPN").setWidth("200px").setFlexGrow(0).setSortable(true)
+                .setComparator(Comparator.comparing(BomItem::getMpn, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)));
+
 
 
 
@@ -369,26 +390,15 @@ public class MainView extends VerticalLayout {
                 .setFlexGrow(0)
                 .setTextAlign(ColumnTextAlign.CENTER);
 
-//        grid.addColumn(BomItem::getMpOznKlas)
-//                .setHeader("Oznaka")
-//                .setWidth("300px")
-//                .setFlexGrow(0);
-
 
         grid.addComponentColumn(item -> {
             TextField desField = new TextField();
-            desField.setValue(item.getDesignator() != null ? item.getDesignator() : "");
+            desField.setValue(item.getDesignator() != null ? item.getDesignator() : "");                // rdeč textFiel ob vsakmu refreshGrid()
+            boolean emptyDesignator = item.getDesignator() == null || item.getDesignator().isEmpty();   // -||-
+            desField.setInvalid(emptyDesignator || item.isDesignatorMismatch());
             desField.setWidth("100%");
             desField.setMinLength(2);
             desField.setMaxLength(70);
-
-            //ob LOAD
-            boolean emptyDesignator = item.getDesignator() == null || item.getDesignator().isEmpty();
-            desField.setInvalid(emptyDesignator || item.isDesignatorMismatch());            //1.
-            if (emptyDesignator)
-                showTextError(item.getMpn(), "je prazno.", true);
-            else if (item.isDesignatorMismatch())
-                showTextError(item.getMpn(), "se ne ujema s količino.", false);
 
 
             desField.addValueChangeListener(e -> {
@@ -457,9 +467,6 @@ public class MainView extends VerticalLayout {
         long missingDesignators = trenutenListKomponent.stream()
                 .filter(i -> i.getDesignator() == null || i.getDesignator().isEmpty())
                 .count();
-//        long neizbrani  = trenutenListKomponent.stream()
-//                .filter(i -> i.getDbKandidati() != null && !i.getDbKandidati().isEmpty())
-//                .count();
 
         long mismatches = trenutenListKomponent.stream().filter(BomItem::isDesignatorMismatch).count();
         statsText.setText("Skupaj: " + trenutenListKomponent.size()
@@ -475,6 +482,16 @@ public class MainView extends VerticalLayout {
                         && mismatches == 0
                         //&& neizbrani == 0             //to če češ da na začetku ni izbrana nubena (sam dej poj tm prefixe zameni na null pa to)
         );
+
+        if (!warningsShow && trenutenListKomponent != null) {
+            trenutenListKomponent.stream()
+                    .filter(i -> i.getDesignator() == null || i.getDesignator().isEmpty())
+                    .forEach(i -> showTextError(i.getMpn(), "je prazno.", true));
+            trenutenListKomponent.stream()                      // .filter obdrži le tiste k ustrezajo dol. pogoju
+                    .filter(BomItem::isDesignatorMismatch)      //i -> i.isDesignatorMismatch() //za vsak BomItem i, kliče metodo isDes...
+                    .forEach(i -> showTextError(i.getMpn(), "se ne ujema s količino.", false));
+            warningsShow = true;
+        }
     }
 
     /**
