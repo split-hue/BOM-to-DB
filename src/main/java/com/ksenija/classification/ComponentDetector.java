@@ -1,5 +1,6 @@
-package com.ksenija;
+package com.ksenija.classification;
 
+import com.ksenija.service.TranslatorService;
 import org.springframework.stereotype.Component;
 
 import java.util.regex.Pattern;

@@ -1,4 +1,4 @@
-package com.ksenija;
+package com.ksenija.classification;
 
 import org.springframework.stereotype.Service;
 

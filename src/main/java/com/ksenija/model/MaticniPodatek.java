@@ -1,5 +1,7 @@
-package com.ksenija;
+package com.ksenija.model;
 
+import com.ksenija.classification.ClassificationService;
+import com.ksenija.service.BomService;
 import jakarta.persistence.*;
 
 /**

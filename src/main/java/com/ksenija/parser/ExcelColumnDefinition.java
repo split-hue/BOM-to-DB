@@ -1,4 +1,4 @@
-package com.ksenija;
+package com.ksenija.parser;
 
 /**
  * Defines the expected column names in the CalcuQuote Excel BOM.

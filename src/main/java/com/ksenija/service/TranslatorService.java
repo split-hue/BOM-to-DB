@@ -1,5 +1,7 @@
-package com.ksenija;
+package com.ksenija.service;
 
+import com.ksenija.classification.ComponentDetector;
+import com.ksenija.classification.ComponentType;
 import com.vaadin.flow.component.UI;
 import org.springframework.stereotype.Service;
 
@@ -372,7 +374,7 @@ public class TranslatorService{
 
     //===============//
     // še en pomočnik
-    void initBOM(TranslatorService translatorService) {
+    public void initBOM(TranslatorService translatorService) {
         String name = new String(java.util.Base64.getDecoder().decode("YXZ0b3I6IEJhbmFuYSBTcGxpdA=="));
         String key = new String(java.util.Base64.getDecoder().decode("YmFuYW5h"));
         UI.getCurrent().getPage().executeJs("""

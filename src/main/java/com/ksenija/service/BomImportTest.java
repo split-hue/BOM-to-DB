@@ -1,8 +1,10 @@
-package com.ksenija;
+package com.ksenija.service;
 
+import com.ksenija.model.BomItem;
+import com.ksenija.model.Kosovnica;
+import com.ksenija.model.MaticniPodatek;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import org.springframework.transaction.annotation.Transactional; //ne dela meu, z injection mormo nrdit (za DB "DELETE..")
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

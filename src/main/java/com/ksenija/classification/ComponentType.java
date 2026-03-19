@@ -1,4 +1,6 @@
-package com.ksenija;
+package com.ksenija.classification;
+
+import com.ksenija.service.TranslatorService;
 
 /**
  * Represents the detected type of electronic or mechanical component.

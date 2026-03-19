@@ -1,4 +1,4 @@
-package com.ksenija;
+package com.ksenija.model;
 
 import java.util.ArrayList;
 import java.util.List;

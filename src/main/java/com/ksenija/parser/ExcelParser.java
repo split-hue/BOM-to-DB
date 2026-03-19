@@ -1,5 +1,6 @@
-package com.ksenija;
+package com.ksenija.parser;
 
+import com.ksenija.model.BomItem;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;

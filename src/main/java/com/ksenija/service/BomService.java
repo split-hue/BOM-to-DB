@@ -1,5 +1,9 @@
-package com.ksenija;
+package com.ksenija.service;
 
+import com.ksenija.classification.ClassificationService;
+import com.ksenija.model.BomItem;
+import com.ksenija.model.Kosovnica;
+import com.ksenija.model.MaticniPodatek;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Service;
