@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
  * <ul>
  *   <li>{@link #translateShort} -> {@code MpNaziv} (max 35 chars), concise name with value and package,
  *       e.g. {@code "Upor SMD CRCW 0402 47K 1%"}</li>
- *   <li>{@link #translateLong} -> {@code MpDoNaziv} (max 60 chars), Slovenian prefix & original English description,
+ *   <li>{@link #translateLong} -> {@code MpDoNaziv} (max 60 chars), Slovenian prefix and original English description,
  *       e.g. {@code "Upor: Resistor Thick Film 0402 47K 1% 0.1W"}</li>
  * </ul>
  * <p>
