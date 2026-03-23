@@ -88,6 +88,7 @@ src/main/java/com/ksenija/
     └── ComponentType.java                  - enum of all supported component types
 
 ```
+## Local network setup - example
 
 ### Generate `.jar` file
 ```bash
@@ -95,12 +96,27 @@ mvn clean package -DskipTests
 ```
 It would skip the test file and your file is now created at `target/import_ksenija-1.0-SNAPSHOT.jar`. If having issues first double-click on 'maven' (right panel) > 'clean' and then again on 'maven' > 'target' to do the same thing. 
 
-### Generate documentation
+### Generate documentation (optional)
 ```bash
 mvn javadoc:javadoc
 ```
 Then open `target/site/apidocs/index.html` in your browser.
 
+### Make scripts
+
+For examples of such scripts, see the [app.zip](./app.zip) folder.
+
+If you do not have Java 21 installed on your computer (or it is not added to your PATH) and you don’t want to modify your system configuration, download a `Java 21 .zip` package from the [Download Java 21](https://adoptium.net/en-GB/temurin/releases?version=21) and extract it into this directory as `\java21`.
+
+Place the previously built `.jar` file in this directory as well.
+
+Now create Windows batch (`.bat`) files for starting and stopping the application, similar to those in the [app.zip](./app.zip) folder.
+
+To run the start script automatically, use Task Scheduler with the following settings:
+
+- Program/script: C:\apps\bomImport\start.bat
+- Add arguments: *(leave empty)*
+- Start in: C:\apps\bomImport
 
 
 ## Authors :rabbit:
