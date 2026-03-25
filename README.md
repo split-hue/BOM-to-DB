@@ -1,34 +1,132 @@
-# My Application README
+<a id="vrh"></a>
+# BOM Import - into database
 
-- [ ] TODO Replace or update this README with instructions relevant to your application
+A internal web tool for importing Bills of Materials (BOM) from CalcuQuote Excel exports into the LARGO ERP database.
+Built with Java 21, Spring Boot, Vaadin 25, and JPA/Hibernate connecting to Microsoft SQL Server.
 
-To start the application in development mode, import it into your IDE and run the `Application` class. 
-You can also start the application from the command line by running: 
+<img src="./slike/light_empty.png" width="500"> <img src="./slike/dark_empty.png" width="500">
 
-```bash
-./mvnw
-```
+## What it does
 
-To build the application in production mode, run:
+First, we need to have an .xlsx file in our file system obtained from CalcuQuote. It represents a Bill of Materials (BOM), and correctly named columns are crucial for the application to work properly. 
 
-```bash
-./mvnw package
-```
+This application:
+Parses the Excel file and extracts all components (MPN, description, quantity, designators, HTS code, etc.)
+Then checks each component against the existing LARGO database, Auto-translates English component descriptions into Slovenian using pattern matching and lets the user review and fix translations and designators before importing.
 
-To build a Docker image, run:
+On confirmation, writes everything to the database:
 
-```bash
-docker build -t my-application:latest .
-```
+There it creates a new assembly article in MaticniPodatki, new component articles for any MPN not already in the DB
+and then writes all BOM rows into the Kosovnica table.
 
-If you use commercial components, pass the license key as a build secret:
-
-```bash
-docker build --secret id=proKey,src=$HOME/.vaadin/proKey .
-```
+<img src="./slike/light_full.png" width="1000">
 
 ## Getting Started
 
-The [Quick Start](https://vaadin.com/docs/v25/getting-started/quick-start) tutorial helps you get started with Vaadin in 
-around 10 minutes. This tutorial walks you through building a simple application, introducing the core concepts along 
-the way.
+Those are instructions on setting up your project locally. To get a local copy up and running follow these simple steps.
+
+### Requrements
+
+ For all **Java/Maven** projects everything is **already defined** in `pom.xml`. Maven downloads all dependencies automatically when you `run mvn spring-boot:run`, so you just need to download theese manually.
+
+- Java 21 (JDK, not just JRE)
+- Maven
+- Network access to the SQL Server (VPN or local)
+
+
+### Setup
+
+Clone this repository:
+
+```git clone https://github.com/split-hue/BOM-to-DB.git```
+
+Open `src/main/resources/application.properties` and fill in your DB credentials:
+
+```
+spring.datasource.url=jdbc:sqlserver://LUZNAR-2018\\LARGO;databaseName=LUZNAR_TESTNO_OKOLJE;encrypt=false;trustServerCertificate=true
+spring.datasource.username=YOUR_USERNAME
+spring.datasource.password=YOUR_PASSWORD
+```
+### Run
+
+Make sure you are connected to the network (or VPN), then open the terminal in the root of the project (where `pom.xml` is) and run:
+
+```mvn spring-boot:run```
+
+Now open your browser at http://localhost:8080
+
+## Project structure
+
+```bash
+
+src/main/java/com/ksenija/
+│
+├── Application.java                        - Spring Boot entry point
+├── AppShell.java                           - Vaadin theme and PWA configuration
+├── BomImportTest.java                      - integration test for BomService.importBom
+│
+├── ui/
+│   └── MainView.java                       - Vaadin UI (upload, grid, import button)
+│
+├── service/
+│   ├── BomService.java                     - DB check + full import logic (includes MPN lookup and deduplication)
+│   └── TranslatorService.java              - English → Slovenian description translator
+│
+├── parser/
+│   ├── ExcelParser.java                    - reads .xlsx, finds header row, builds column map
+│   ├── ExcelColumnDefinition.java          - enum of expected Excel column names
+│   └── BomItemMapper.java                  - maps Excel rows to BomItem, validates designators
+│
+├── model/
+│   ├── BomItem.java                        - data object for one BOM component
+│   ├── MaticniPodatek.java                 - JPA entity for MaticniPodatki table
+│   └── Kosovnica.java                      - JPA entity for Kosovnica table
+│
+└── classification/
+    ├── ClassificationService.java          - classifies components by type (resistor, capacitor, etc.)
+    ├── ComponentDetector.java              - detects mounting type and package from description
+    └── ComponentType.java                  - enum of all supported component types
+
+```
+## Local network setup - example
+
+### Generate `.jar` file
+```bash
+mvn clean package -DskipTests
+```
+It would skip the test file and your file is now created at `target/import_ksenija-1.0-SNAPSHOT.jar`. If having issues first double-click on 'maven' (right panel) > 'clean' and then again on 'maven' > 'target' to do the same thing. 
+
+### Generate documentation (optional)
+```bash
+mvn javadoc:javadoc
+```
+Then open `target/site/apidocs/index.html` in your browser.
+
+### Make scripts
+
+For examples of such scripts, see the [app.zip](./app.zip) folder.
+
+If you do not have Java 21 installed on your computer (or it is not added to your PATH) and you don’t want to modify your system configuration, download a `Java 21 .zip` package from the [Download Java 21](https://adoptium.net/en-GB/temurin/releases?version=21) and extract it into this directory as `\java21`.
+
+Place the previously built `.jar` file in this directory as well.
+
+Now create Windows batch (`.bat`) files for starting and stopping the application, similar to those in the [app.zip](./app.zip) folder.
+
+To run the start script automatically, use Task Scheduler with the following settings:
+
+- Program/script: C:\apps\bomImport\start.bat
+- Add arguments: *(leave empty)*
+- Start in: C:\apps\bomImport
+
+
+## Authors :rabbit:
+
+<div align="center">
+  <a href="https://github.com/split-hue">
+    <img src="https://github.com/split-hue.png" width="120" style="border-radius:50%" alt="split-hue"/>
+    <br/>
+    <b>@split-hue</b>
+  </a>
+</div>
+
+<p align="right"><a href="#vrh">back to top</a></p>
