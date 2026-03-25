@@ -49,6 +49,9 @@ public class BomItem {
     /** Name of the component supplier. */
     private String supplier;
 
+    /** Quantity of this component needed to buy in chunk, for saving */
+    private Integer lqty;
+
 
     // -------------------------------------------------------------------------
     // Status after DB check
@@ -164,6 +167,9 @@ public class BomItem {
 
     public String getMpOzBlagSkup() { return mpOzBlagSkup; }
     public void setMpOzBlagSkup(String mpOzBlagSkup) { this.mpOzBlagSkup = mpOzBlagSkup; }
+
+    public Integer getLQty() { return lqty; }
+    public Integer setLQty(Integer lqty) { return this.lqty = lqty; }
 
 //--------pomožne za shranjevat stanja
     public boolean isDesignatorMismatch() {return designatorMismatch;}

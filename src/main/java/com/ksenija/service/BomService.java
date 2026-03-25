@@ -4,6 +4,7 @@ import com.ksenija.classification.ClassificationService;
 import com.ksenija.model.BomItem;
 import com.ksenija.model.Kosovnica;
 import com.ksenija.model.MaticniPodatek;
+import com.vaadin.pro.licensechecker.Product;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Service;
@@ -250,6 +251,8 @@ public class BomService {
         product.setMpSifProdSkup(5);
         product.setMpIntrastat(0);
         product.setMpBrutoTeza(null);
+        product.setMpKolNar(0);
+        product.setMpZaokKolNar(0);
         entityManager.persist(product); // VNESE => DB (persist() stages it for insert — not written to DB yet, that happens at flush())
 
         result.setProductSifra(productSifra);
@@ -324,6 +327,8 @@ public class BomService {
             art.setMpSifProdSkup(5);
             art.setMpIntrastat(0);
             art.setMpBrutoTeza(null);
+            art.setMpKolNar(item.getLQty());
+            art.setMpZaokKolNar(item.getLQty());        // mogoče rabmo kako drugače zaokrožiti?? :)
             entityManager.persist(art);                 // VNESE new comp. => DB
 
             newArticleMap.put(item.getMpn(), nextSifra);

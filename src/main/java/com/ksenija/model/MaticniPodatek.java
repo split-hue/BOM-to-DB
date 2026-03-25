@@ -182,6 +182,12 @@ public class MaticniPodatek {
     @Column(name = "MpBrutoTeza")
     private Integer mpBrutoTeza;
 
+    @Column(name = "MpKolNar")
+    private Integer mpKolNar;
+
+    @Column(name = "MpZaokKolNar")
+    private Integer mpZaokKolNar;
+
     // =========================================================
     // Getters and Setters
     // =========================================================
@@ -316,4 +322,10 @@ public class MaticniPodatek {
 
     public Integer getMpBrutoTeza() { return mpBrutoTeza; } //v DB je tip 'numeric'
     public void setMpBrutoTeza(Integer v) { this.mpBrutoTeza = v; }
+
+    public Integer getMpKolNar() { return mpKolNar; }
+    public void setMpKolNar(Integer mpKolNar) { this.mpKolNar = mpKolNar; }
+
+    public Integer getMpZaokKolNar() { return mpZaokKolNar; }
+    public void setMpZaokKolNar(Integer mpZaokKolNar) { this.mpZaokKolNar = mpZaokKolNar; }
 }

@@ -390,8 +390,23 @@ public class MainView extends VerticalLayout {
                 .setFlexGrow(0)
                 .setTextAlign(ColumnTextAlign.CENTER);
 
-        grid.addColumn(BomItem::getIzmet)
-                .setHeader("Izmet %")
+        grid.addComponentColumn(item -> {
+            TextField izmetField = new TextField();
+            izmetField.setValue(item.getIzmet() != null ? String.valueOf(item.getIzmet()) : "0.0");
+            izmetField.setWidth("100%");
+            izmetField.addValueChangeListener(e -> {
+                try {
+                    item.setIzmet(Double.parseDouble(e.getValue().replace(",", ".")));
+                } catch (NumberFormatException ex) {
+                    izmetField.setInvalid(true);
+                }
+            });
+            return izmetField;
+        }).setHeader("Izmet %").setFlexGrow(0).setWidth("90px").setTextAlign(ColumnTextAlign.CENTER);
+
+
+        grid.addColumn(BomItem::getLQty)
+                .setHeader("Odgorki")
                 .setWidth("90px")
                 .setFlexGrow(0)
                 .setTextAlign(ColumnTextAlign.CENTER);

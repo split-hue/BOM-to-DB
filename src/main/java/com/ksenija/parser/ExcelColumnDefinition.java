@@ -25,7 +25,8 @@ public enum ExcelColumnDefinition {
     COUNTRY_ORIGIN( new String[]{"country of origin", "country origin", "coo"}),
     DATASHEET_URL(  new String[]{"datasheet", "datasheet url"}),
     LEAD_TIME(      new String[]{"lead time", "leadtime"}),
-    SUPPLIER(       new String[]{"last known supplier", "supplier", "source"});
+    SUPPLIER(       new String[]{"last known supplier", "supplier", "source"}),
+    LQTY(           new String[]{"lead qty"});
 
 
     private final String[] possibleHeaders;

@@ -72,6 +72,7 @@ public class BomItemMapper {
 
         item.setIzmet(getDouble(row, colMap, ExcelColumnDefinition.IZMET, 0.0));
         item.setLeadTime(getDouble(row, colMap, ExcelColumnDefinition.LEAD_TIME, 0.0));
+        item.setLQty(getDouble(row, colMap, ExcelColumnDefinition.LQTY, 0.0).intValue());
 
         return item;
     }
