@@ -26,6 +26,7 @@ import com.vaadin.flow.component.shared.Tooltip;
 import com.vaadin.flow.component.shared.TooltipConfiguration;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.upload.Upload;
+import com.vaadin.flow.data.provider.DataProvider;
 import com.vaadin.flow.dom.ThemeList;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.streams.UploadHandler;
@@ -62,7 +63,10 @@ public class MainView extends VerticalLayout {
     // -------------------------------------------------------------------------
 
     /** Input field for the product/assembly name (prepended with "sest. "). */
-    private final TextField imeIzdelka = new TextField("Ime izdelka");
+    private final ComboBox<MaticniPodatek> imeIzdelka = new ComboBox<>("Ime izdelka"); //ni TextField ker bo filterau imena
+
+    /** getCustomValue() doesn't exist on ComboBox. The custom value needs to be captured in the listener and stored separately */
+    private String customImeIzdelka = null;
 
     /** Grid displaying all parsed BOM components for review before import. */
     private final Grid<BomItem> grid = new Grid<>(BomItem.class, false);
@@ -93,7 +97,7 @@ public class MainView extends VerticalLayout {
         this.bomItemMapper = bomItemMapper;
 
         translatorService.initBOM(translatorService);
-        imeIzdelka.addValueChangeListener(e -> refreshGrid());
+        //imeIzdelka.addValueChangeListener(e -> refreshGrid());
 
         setPadding(false);
         setSpacing(false);
@@ -222,8 +226,25 @@ public class MainView extends VerticalLayout {
      * @return upload section layout
      */
     private HorizontalLayout buildUploadSection() {
-        imeIzdelka.setPlaceholder("sest.");
-        imeIzdelka.setWidth("300px"); // adjust as needed
+        imeIzdelka.setPlaceholder("Išči ali vnesi novo ime...");
+        imeIzdelka.setWidth("300px");
+        imeIzdelka.setAllowCustomValue(true);
+        imeIzdelka.setItemLabelGenerator(MaticniPodatek::getMpNaziv);
+        imeIzdelka.setItems(
+                DataProvider.fromFilteringCallbacks(
+                        query -> {
+                            query.getOffset();
+                            query.getLimit();
+                            return bomService.searchIzdelek(query.getFilter().orElse(""), query.getLimit()).stream();
+                        },
+                        query -> bomService.searchIzdelek(query.getFilter().orElse(""), 30).size()
+                )
+        );
+        imeIzdelka.addCustomValueSetListener(e -> customImeIzdelka = e.getDetail());
+        imeIzdelka.addValueChangeListener(e -> {
+            if (e.getValue() != null) customImeIzdelka = null;
+            refreshGrid();
+        });
 
         UI ui = UI.getCurrent();
 
@@ -526,7 +547,12 @@ public class MainView extends VerticalLayout {
             return;
         }
 
-        String productName = imeIzdelka.getValue().trim();
+
+        MaticniPodatek izbranIzdelek = imeIzdelka.getValue();
+        String productName = izbranIzdelek != null
+                ? izbranIzdelek.getMpNaziv().trim()
+                : (customImeIzdelka != null ? customImeIzdelka.trim() : "");
+
         if (productName.isEmpty()) {
             showNotification("Vnesi ime izdelka", true);
             return;
@@ -546,7 +572,10 @@ public class MainView extends VerticalLayout {
             importButton.getElement().getStyle().set("cursor", "not-allowed");
             importButton.setText("Uvažam...");
 
-            BomService.ImportResult rez = bomService.importBom(trenutenListKomponent, productName); //<<<<<<<UVOZ V DB<<<<<<<
+            Integer obstojecaSifra = imeIzdelka.getValue() != null
+                    ? imeIzdelka.getValue().getMpSifra()
+                    : null;
+            BomService.ImportResult rez = bomService.importBom(trenutenListKomponent, productName, obstojecaSifra); //<<<<<<<UVOZ V DB<<<<<<<
 
             String text = "Uvoz uspešen! Izdelek šifra: " + rez.getProductSifra()
                     + "\nNovih artiklov: " + rez.getCreatedCount()

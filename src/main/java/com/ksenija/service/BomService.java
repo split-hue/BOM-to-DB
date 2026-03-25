@@ -192,72 +192,80 @@ public class BomService {
      * @return              {@link ImportResult} with counts and a log of what was created
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
-    public ImportResult importBom(List<BomItem> items, String productName) {
+    public ImportResult importBom(List<BomItem> items, String productName,Integer obstojecaSifra) {
         ImportResult result = new ImportResult();   // return
         System.out.println("=== IMPORT START: " + productName + " (" + items.size() + " items) ===");
 
         // ---1. nared parent product article (assembly)--- IZDELEK vvv
-        Integer productSifra = getNextSifra();
+        Integer productSifra;
+        if (obstojecaSifra != null) {
+            productSifra = obstojecaSifra;
+            result.setProductSifra(productSifra);
+            result.setProductName(productName);
+            result.addLog(":) Uporabljen obstoječ artikel: šifra " + productSifra + "(ne bomo ustvarjali novega)");
+        } else {
+            productSifra = getNextSifra();
+            String fullProductName = productName.toLowerCase().startsWith("sest.") ?
+                    productName : "sest. " + productName;
+            fullProductName = truncate(fullProductName, 35);
 
-        String fullProductName = productName.toLowerCase().startsWith("sest.") ?
-                productName : "sest. " + productName;
-        fullProductName = truncate(fullProductName, 35);
 
 
+            MaticniPodatek product = new MaticniPodatek();      // MaticniPodatek -> database object for a product
 
-        MaticniPodatek product = new MaticniPodatek();      // MaticniPodatek -> database object for a product
+            product.setMpSifra(productSifra);
+            product.setMpNaziv(fullProductName);
+            product.setMpDoNaziv(fullProductName);
+            product.setMpKupcOznaka("");
+            product.setMpStRisbe("");
+            product.setMpStStandarda("");
+            product.setMpSifEnoteMere1("KOS");
+            product.setMpSifEnoteMere2("");
+            product.setMpSifEnoteMere3("");
+            product.setMpSifPlaKlj("1");
+            product.setMpBarCode("");
+            product.setMpOsnSklad(11);
+            product.setMpOsnLokacija("O");
+            product.setMpABCkoda("");
+            product.setMpOzPolitNar("");
+            product.setMpKonto("");
+            product.setMpStatus(0);
+            product.setMpOpomba("");
+            product.setMpStaraSif(String.valueOf(productSifra));
+            product.setMpSifKarKlj("I");
+            product.setMpSifKarKljInt("I");
+            product.setMpOznKlas("");
+            product.setMpOzBlagSkup(" ");
+            product.setMpImaKosovn(1);// assembly has a BOM
+            product.setMpCarinskaTar("");
+            product.setMpDrzavaPorekla("");
+            product.setMpVeliStev("");
+            product.setMpVeliSistem("");
+            product.setMpKontoProd("");
+            product.setMpRisbaFName("");
+            product.setMpOpis("");
+            product.setMpCenik("N");
+            product.setMpTipCene("DNC");
+            product.setMpOpisSSlikcami("");
+            product.setMpAktTeh("");       //"B"
+            product.setMpVodCas(0.0);
+            product.setMpCustom10("");
+            product.setNameOper("dbo");
+            product.setfNameOper("dbo");
+            product.setMpSifPlanerja(81);
+            product.setMpDavZapSt(1);
+            product.setMpSifProdSkup(5);
+            product.setMpIntrastat(0);
+            product.setMpBrutoTeza(null);
+            product.setMpKolNar(0);
+            product.setMpZaokKolNar(0);
+            entityManager.persist(product); // VNESE => DB (persist() stages it for insert — not written to DB yet, that happens at flush())
 
-        product.setMpSifra(productSifra);
-        product.setMpNaziv(fullProductName);
-        product.setMpDoNaziv(fullProductName);
-        product.setMpKupcOznaka("");
-        product.setMpStRisbe("");
-        product.setMpStStandarda("");
-        product.setMpSifEnoteMere1("KOS");
-        product.setMpSifEnoteMere2("");
-        product.setMpSifEnoteMere3("");
-        product.setMpSifPlaKlj("1");
-        product.setMpBarCode("");
-        product.setMpOsnSklad(11);
-        product.setMpOsnLokacija("O");
-        product.setMpABCkoda("");
-        product.setMpOzPolitNar("");
-        product.setMpKonto("");
-        product.setMpStatus(0);
-        product.setMpOpomba("");
-        product.setMpStaraSif(String.valueOf(productSifra));
-        product.setMpSifKarKlj("I");
-        product.setMpSifKarKljInt("I");
-        product.setMpOznKlas("");
-        product.setMpOzBlagSkup(" ");
-        product.setMpImaKosovn(1);// assembly has a BOM
-        product.setMpCarinskaTar("");
-        product.setMpDrzavaPorekla("");
-        product.setMpVeliStev("");
-        product.setMpVeliSistem("");
-        product.setMpKontoProd("");
-        product.setMpRisbaFName("");
-        product.setMpOpis("");
-        product.setMpCenik("N");
-        product.setMpTipCene("DNC");
-        product.setMpOpisSSlikcami("");
-        product.setMpAktTeh("");       //"B"
-        product.setMpVodCas(0.0);
-        product.setMpCustom10("");
-        product.setNameOper("dbo");
-        product.setfNameOper("dbo");
-        product.setMpSifPlanerja(81);
-        product.setMpDavZapSt(1);
-        product.setMpSifProdSkup(5);
-        product.setMpIntrastat(0);
-        product.setMpBrutoTeza(null);
-        product.setMpKolNar(0);
-        product.setMpZaokKolNar(0);
-        entityManager.persist(product); // VNESE => DB (persist() stages it for insert — not written to DB yet, that happens at flush())
+            result.setProductSifra(productSifra);
+            result.setProductName(fullProductName);
+            result.addLog(":)) Ustvarjen izdelek oz assembly: " + fullProductName + " (šifra " + productSifra + ")");
+        }
 
-        result.setProductSifra(productSifra);
-        result.setProductName(fullProductName);
-        result.addLog(":)) Ustvarjen izdelek oz assembly: " + fullProductName + " (šifra " + productSifra + ")");
 
 //-----------------------------------------------------------------------------------------------------------------------
         // ---2. Create new artikel (items not yet in DB)--- COMPONENTA vv
@@ -572,5 +580,30 @@ public class BomService {
         public void setKosovnicaCount(int v)   { this.kosovnicaCount = v; }
 
         public List<String> getLog()           { return log; }
+    }
+
+    // =========================================================
+    // SEARCH name of article/assembly
+    //
+    // =========================================================
+    /**
+     * Searches for assembly candidates by name.
+     * Returns articles that have no Kosovnica rows as a parent (LEFT JOIN WHERE NULL).
+     *
+     * @param name  search string (partial match, case-insensitive)
+     * @param limit max number of results
+     * @return list of matching articles
+     */
+    public List<MaticniPodatek> searchIzdelek(String name, int limit) {
+        return entityManager.createQuery(
+                        "SELECT m FROM MaticniPodatek m " +
+                                "LEFT JOIN Kosovnica k ON m.mpSifra = k.koNadSifMp " +
+                                "WHERE k.koNadSifMp IS NULL " +
+                                "AND LOWER(m.mpNaziv) LIKE LOWER(:q) " +
+                                "ORDER BY m.mpNaziv",
+                        MaticniPodatek.class)
+                .setParameter("q", "%" + name + "%")
+                .setMaxResults(limit)
+                .getResultList();
     }
 }
