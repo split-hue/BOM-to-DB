@@ -9,6 +9,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -88,7 +89,7 @@ public class BomImportTest {
         List<BomItem> items = List.of(item);                    //trenutno v listu le 1 item
 
         //ackt
-        BomService.ImportResult rezultat = bomService.importBom(items, "TEST1 - 1 komponenta");
+        BomService.ImportResult rezultat = bomService.importBom(items, "TEST1 - 1 komponenta", null);
 
         createdKoNadSifraList.add(rezultat.getProductSifra());  //dodata not 1 ELE. v prazen list, List items
         createdMpSifraList.add(rezultat.getProductSifra());
@@ -138,7 +139,7 @@ public class BomImportTest {
                 newItem("TEST-IC-001",  "Microcontroller STM32 LQFP", 1.0, "U1")
         );
 
-        BomService.ImportResult rezultat = bomService.importBom(items, "TEST2 - več komponent");
+        BomService.ImportResult rezultat = bomService.importBom(items, "TEST2 - več komponent", null);
 
         createdMpSifraList.add(rezultat.getProductSifra());                                         //dodata not 1 ELE. v prazen list, List items
         createdKoNadSifraList.add(rezultat.getProductSifra());                                      //dodata not 1 ELE. v prazen list, List items
@@ -168,7 +169,7 @@ public class BomImportTest {
     void prefixAddedIfMissing() {
         BomItem item = newItem("TEST-LED-001", "LED SMD 0402", 1.0, "D1");
 
-        BomService.ImportResult result = bomService.importBom(List.of(item), "TEST3 - import brez prefixa, mora dodat '.sest'");
+        BomService.ImportResult result = bomService.importBom(List.of(item), "TEST3 - import brez prefixa, mora dodat '.sest'", null);
 
         createdKoNadSifraList.add(result.getProductSifra());
         createdMpSifraList.add(result.getProductSifra());
@@ -191,7 +192,7 @@ public class BomImportTest {
         BomItem item = newItem("TEST-LED-002", "LED SMD 0603", 1.0, "D2");
 
         BomService.ImportResult result = bomService.importBom(
-                List.of(item), "TEST4 - impor k že ima prefix, ne sme dodat 'sest.'");
+                List.of(item), "TEST4 - impor k že ima prefix, ne sme dodat 'sest.'", null);
 
         createdKoNadSifraList.add(result.getProductSifra());
         createdMpSifraList.add(result.getProductSifra());
@@ -228,7 +229,7 @@ public class BomImportTest {
         existingItem.setNazivSlo(existing.getMpNaziv());
 
         BomService.ImportResult result = bomService.importBom(
-                List.of(existingItem), "TEST Assembly Existing");
+                List.of(existingItem), "TEST Assembly Existing", null);
 
         createdKoNadSifraList.add(result.getProductSifra());
         createdMpSifraList.add(result.getProductSifra());
@@ -237,6 +238,56 @@ public class BomImportTest {
                 "Neb se smela ustvart nobena nova komponenta, k že oubstaja v DB!");
         assertEquals(1, result.getKosovnicaCount(),
                 "Kosovnica mora še vedno imeti le 1 vrstico!");
+    }
+
+    /**
+     * Verifies that if the pre-existing Article exist in DB without its components and kosovnica:
+     * it's not creating new Article but only link/add components and makes kosovnica
+     */
+    @Test
+    void importBom_obstojecIzdelek_neUstvariNovegaIzdelka() {
+        MaticniPodatek obstojecIzdelek = new MaticniPodatek();
+        Integer testSifra = ((Number) entityManager
+                .createNativeQuery("SELECT ISNULL(MAX(MpSifra), 0) FROM MaticniPodatki") //maš prosta šifra
+                .getSingleResult()).intValue() + 1;
+        obstojecIzdelek.setMpSifra(testSifra);
+        obstojecIzdelek.setMpNaziv("TEST obstoječ artikel");
+        obstojecIzdelek.setMpDoNaziv("TEST obstoječ artikel");
+        obstojecIzdelek.setMpKupcOznaka("");
+        obstojecIzdelek.setMpSifEnoteMere1("KOS");
+        obstojecIzdelek.setMpBarCode("");
+        obstojecIzdelek.setMpOsnSklad(11);
+        obstojecIzdelek.setMpStatus(0);
+        obstojecIzdelek.setMpStaraSif(String.valueOf(testSifra));
+        obstojecIzdelek.setMpImaKosovn(0);
+
+        new TransactionTemplate(transactionManager).execute(status -> { //commit v db
+            entityManager.persist(obstojecIzdelek);
+            entityManager.flush();
+            return null;
+        });
+
+        //act; kreira 1 komponento
+        BomItem item = newItem("TEST-DROPDOWN", "Resistor 0402 10K", 2.0, "R1,R2");
+        BomService.ImportResult rezultat = bomService.importBom(List.of(item), "TEST obstoječ", testSifra); //<<< DEJ. TEST
+
+        //cleanup
+        createdKoNadSifraList.add(testSifra);
+        createdMpSifraList.add(testSifra);
+        entityManager.createQuery("SELECT m FROM MaticniPodatek m WHERE m.mpKupcOznaka = :mpn", MaticniPodatek.class)
+                .setParameter("mpn", "TEST-DROPDOWN")
+                .getResultList()
+                .forEach(c -> createdMpSifraList.add(c.getMpSifra()));
+
+        //==
+        assertEquals(testSifra, rezultat.getProductSifra(), "Šifra MORA biti enaka obstoječemu artiklu - TA NI!");
+        assertEquals(1, rezultat.getCreatedCount(), "1 komponenta mora biti ustvarjena");
+        assertEquals(1, rezultat.getKosovnicaCount(), "1 kosovnica vrstica mora biti");
+        List<Kosovnica> rows = entityManager
+                .createQuery("SELECT k FROM Kosovnica k WHERE k.koNadSifMp = :sifra", Kosovnica.class)
+                .setParameter("sifra", testSifra)
+                .getResultList();
+        assertEquals(1, rows.size(), "kosovnica mora met 1 vrsto");
     }
 
 }
