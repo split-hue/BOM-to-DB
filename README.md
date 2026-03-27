@@ -43,9 +43,14 @@ Clone this repository:
 Open `src/main/resources/application.properties` and fill in your DB credentials:
 
 ```
-spring.datasource.url=jdbc:sqlserver://LUZNAR-2018\\LARGO;databaseName=LUZNAR_TESTNO_OKOLJE;encrypt=false;trustServerCertificate=true
-spring.datasource.username=YOUR_USERNAME
-spring.datasource.password=YOUR_PASSWORD
+spring.datasource.url=jdbc:sqlserver:DATABASE;databaseName=DATABASE-NAME;encrypt=false;trustServerCertificate=true
+spring.datasource.username=YOUR_DB_USERNAME
+spring.datasource.password=YOUR_DB_PASSWORD
+...
+# CalcuQuote
+calcuquote.username=YOUR_CQ_USERNAME
+calcuquote.password=YOUR_CQ_PASSWORD
+calcuquote.url=https://login.calcuquote.com/Account/Login
 ```
 ### Run
 
