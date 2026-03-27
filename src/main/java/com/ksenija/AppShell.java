@@ -2,6 +2,7 @@ package com.ksenija;
 
 import com.vaadin.flow.component.dependency.StyleSheet;
 import com.vaadin.flow.component.page.AppShellConfigurator;
+import com.vaadin.flow.component.page.Push;
 import com.vaadin.flow.theme.Theme;
 import com.vaadin.flow.theme.lumo.Lumo;
 
@@ -15,5 +16,6 @@ import com.vaadin.flow.theme.lumo.Lumo;
  */
 @StyleSheet(Lumo.STYLESHEET)
 @Theme("ksenija")
+@Push
 public class AppShell implements AppShellConfigurator {
 }

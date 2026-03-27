@@ -5,6 +5,7 @@ import com.ksenija.model.MaticniPodatek;
 import com.ksenija.parser.BomItemMapper;
 import com.ksenija.parser.ExcelParser;
 import com.ksenija.service.BomService;
+import com.ksenija.service.CalcuQuoteService;
 import com.ksenija.service.TranslatorService;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.Text;
@@ -22,6 +23,7 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.page.Push;
 import com.vaadin.flow.component.shared.Tooltip;
 import com.vaadin.flow.component.shared.TooltipConfiguration;
 import com.vaadin.flow.component.textfield.TextField;
@@ -33,6 +35,7 @@ import com.vaadin.flow.server.streams.UploadHandler;
 import com.vaadin.flow.theme.lumo.Lumo;
 
 
+import java.io.InputStream;
 import java.util.Comparator;
 import java.util.List;
 
@@ -83,6 +86,9 @@ public class MainView extends VerticalLayout {
     /** Warning message shown ONLY after the BOM import, not on every refreshGrid() */
     private boolean warningsShow = false;
 
+    /** Service that automatically downloads BOM file */
+    private final CalcuQuoteService calcuQuoteService;
+
 
     /**
      * Constructor injection; Creates the view and builds all UI sections.
@@ -91,10 +97,11 @@ public class MainView extends VerticalLayout {
      * @param bomService        handles DB checks and import logic
      * @param bomItemMapper     validates and expands designator strings
      */
-    public MainView(ExcelParser excelParser, BomService bomService, BomItemMapper bomItemMapper, TranslatorService translatorService) {
+    public MainView(ExcelParser excelParser, BomService bomService, BomItemMapper bomItemMapper, TranslatorService translatorService, CalcuQuoteService calcuQuoteService) {
         this.excelParser = excelParser;
         this.bomService = bomService;
         this.bomItemMapper = bomItemMapper;
+        this.calcuQuoteService = calcuQuoteService;
 
         translatorService.initBOM(translatorService);
         //imeIzdelka.addValueChangeListener(e -> refreshGrid());
@@ -272,13 +279,61 @@ public class MainView extends VerticalLayout {
         upload.setMaxFiles(1);
         upload.setDropLabel(new Span("Sem povleci Excel BOM dat. ali klikni za izbiro"));
         upload.setWidth("400px");
-        upload.getUploadButton().getStyle().set("cursor", "pointer"); // je notranji gumb, ne nš
+        upload.getUploadButton().getStyle().set("cursor", "pointer");
 
-        // ime izdelka in upload v -> horizontal layout
-        HorizontalLayout horizontalnoZgorej = new HorizontalLayout(imeIzdelka, upload);
+
+        TextField textRFQ = new TextField();
+        textRFQ.setPlaceholder("Quote ID (npr. B-12345)");
+        textRFQ.setWidth("200px");
+
+        Button buttonCQ = new Button("Prenesi iz CalcuQuote", VaadinIcon.DOWNLOAD.create());
+        buttonCQ.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+
+        buttonCQ.addClickListener(e -> {
+            String quoteId = textRFQ.getValue().trim();
+            if (quoteId.isEmpty()) {
+                showNotification("Vnesi Quote ID", true);
+                return;
+            }
+
+            buttonCQ.setEnabled(false);
+            buttonCQ.setText("Prenašam...");
+
+            new Thread(() -> {
+                try {
+                    System.out.println(">>> Thread started, downloading: " + quoteId);
+                    InputStream stream = calcuQuoteService.downloadRfqExcel(quoteId);
+                    System.out.println(">>> Download done, parsing...");
+                    List<BomItem> parsed = excelParser.parse(stream);
+                    System.out.println(">>> Parsed: " + parsed.size() + " items");
+                    List<BomItem> checked = bomService.checkAgainstDatabase(parsed);
+                    System.out.println(">>> Checked against DB, accessing UI...");
+
+                    ui.access(() -> {
+                        System.out.println(">>> Inside ui.access");
+                        trenutenListKomponent = checked;
+                        warningsShow = false;
+                        refreshGrid();
+                        buttonCQ.setEnabled(true);
+                        buttonCQ.setText("Prenesi iz CalcuQuote");
+                        showNotification("Preneseno: " + trenutenListKomponent.size() + " komponent", false);
+                    });
+                } catch (Exception ex) {
+                    System.out.println(">>> EXCEPTION: " + ex.getClass().getName() + ": " + ex.getMessage());
+                    ex.printStackTrace(); //za izpis log-ou
+                    ui.access(() -> {
+                        showNotification("Napaka: " + ex.getMessage(), true);
+                        buttonCQ.setEnabled(true);
+                        buttonCQ.setText("Prenesi iz CalcuQuote");
+                    });
+                }
+            }).start();
+        });
+
+        HorizontalLayout horizontalnoZgorej = new HorizontalLayout(imeIzdelka, upload, textRFQ, buttonCQ);
         horizontalnoZgorej.setSpacing(true);
         horizontalnoZgorej.getStyle().set("gap", "40px");
-        horizontalnoZgorej.setAlignItems(FlexComponent.Alignment.START);
+        horizontalnoZgorej.setAlignItems(FlexComponent.Alignment.END);
         horizontalnoZgorej.setPadding(true);
         horizontalnoZgorej.getStyle().set("padding-left", "20px");
 
