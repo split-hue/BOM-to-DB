@@ -280,10 +280,14 @@ public class MainView extends VerticalLayout {
         upload.setDropLabel(new Span("Sem povleci Excel BOM dat. ali klikni za izbiro"));
         upload.setWidth("400px");
         upload.getUploadButton().getStyle().set("cursor", "pointer");
+        upload.setWidth("400px");
+        upload.setHeight("90px");
+        upload.getStyle().set("flex-shrink", "0"); //se ne krči
+        upload.getStyle().set("flex-grow", "0"); //se ne razteza
 
 
         TextField textRFQ = new TextField();
-        textRFQ.setPlaceholder("Quote ID (npr. B-12345)");
+        textRFQ.setPlaceholder("Quote ID (npr. 373)");
         textRFQ.setWidth("200px");
 
         Button buttonCQ = new Button("Prenesi iz CalcuQuote", VaadinIcon.DOWNLOAD.create());
@@ -301,13 +305,9 @@ public class MainView extends VerticalLayout {
 
             new Thread(() -> {
                 try {
-                    System.out.println(">>> Thread started, downloading: " + quoteId);
                     InputStream stream = calcuQuoteService.downloadRfqExcel(quoteId);
-                    System.out.println(">>> Download done, parsing...");
                     List<BomItem> parsed = excelParser.parse(stream);
-                    System.out.println(">>> Parsed: " + parsed.size() + " items");
                     List<BomItem> checked = bomService.checkAgainstDatabase(parsed);
-                    System.out.println(">>> Checked against DB, accessing UI...");
 
                     ui.access(() -> {
                         System.out.println(">>> Inside ui.access");
@@ -329,11 +329,16 @@ public class MainView extends VerticalLayout {
                 }
             }).start();
         });
+        VerticalLayout avtomatskiVnos = new VerticalLayout(textRFQ, buttonCQ);
+        avtomatskiVnos.setSpacing(false);
+        avtomatskiVnos.getStyle().set("gap", "5px");
+        avtomatskiVnos.setPadding(false);
+        avtomatskiVnos.getStyle().set("padding-left", "80px");
 
-        HorizontalLayout horizontalnoZgorej = new HorizontalLayout(imeIzdelka, upload, textRFQ, buttonCQ);
+        HorizontalLayout horizontalnoZgorej = new HorizontalLayout(imeIzdelka, upload, avtomatskiVnos);
         horizontalnoZgorej.setSpacing(true);
         horizontalnoZgorej.getStyle().set("gap", "40px");
-        horizontalnoZgorej.setAlignItems(FlexComponent.Alignment.END);
+        horizontalnoZgorej.setAlignItems(FlexComponent.Alignment.START);
         horizontalnoZgorej.setPadding(true);
         horizontalnoZgorej.getStyle().set("padding-left", "20px");
 
