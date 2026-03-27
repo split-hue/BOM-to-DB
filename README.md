@@ -47,7 +47,6 @@ spring.datasource.url=jdbc:sqlserver:DATABASE;databaseName=DATABASE-NAME;encrypt
 spring.datasource.username=YOUR_DB_USERNAME
 spring.datasource.password=YOUR_DB_PASSWORD
 ...
-# CalcuQuote
 calcuquote.username=YOUR_CQ_USERNAME
 calcuquote.password=YOUR_CQ_PASSWORD
 calcuquote.url=https://login.calcuquote.com/Account/Login
