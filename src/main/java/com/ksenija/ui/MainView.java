@@ -24,6 +24,7 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.page.Push;
+import com.vaadin.flow.component.progressbar.ProgressBar;
 import com.vaadin.flow.component.shared.Tooltip;
 import com.vaadin.flow.component.shared.TooltipConfiguration;
 import com.vaadin.flow.component.textfield.TextField;
@@ -104,12 +105,10 @@ public class MainView extends VerticalLayout {
         this.calcuQuoteService = calcuQuoteService;
 
         translatorService.initBOM(translatorService);
-        //imeIzdelka.addValueChangeListener(e -> refreshGrid());
 
         setPadding(false);
         setSpacing(false);
 
-        //UI.getCurrent().getElement().getThemeList().add(Lumo.DARK);
         applyCookie();
 
         VerticalLayout ostalo = new VerticalLayout( //wrapper za ostalo razen bannerja
@@ -280,8 +279,7 @@ public class MainView extends VerticalLayout {
         upload.setDropLabel(new Span("Sem povleci Excel BOM dat. ali klikni za izbiro"));
         upload.setWidth("400px");
         upload.getUploadButton().getStyle().set("cursor", "pointer");
-        upload.setWidth("400px");
-        upload.setHeight("90px");
+        upload.setHeight("120px");
         upload.getStyle().set("flex-shrink", "0"); //se ne krči
         upload.getStyle().set("flex-grow", "0"); //se ne razteza
 
@@ -293,6 +291,11 @@ public class MainView extends VerticalLayout {
         Button buttonCQ = new Button("Prenesi iz CalcuQuote", VaadinIcon.DOWNLOAD.create());
         buttonCQ.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
 
+        ProgressBar loading = new ProgressBar();
+        loading.setIndeterminate(true);
+        loading.setVisible(false);
+        loading.setWidth("200px");
+
         buttonCQ.addClickListener(e -> {
             String quoteId = textRFQ.getValue().trim();
             if (quoteId.isEmpty()) {
@@ -301,7 +304,9 @@ public class MainView extends VerticalLayout {
             }
 
             buttonCQ.setEnabled(false);
-            buttonCQ.setText("Prenašam...");
+            buttonCQ.setText("Prenašam iz CQ...");
+            buttonCQ.setIcon(VaadinIcon.HOURGLASS.create());
+            loading.setVisible(true);
 
             new Thread(() -> {
                 try {
@@ -317,6 +322,7 @@ public class MainView extends VerticalLayout {
                         buttonCQ.setEnabled(true);
                         buttonCQ.setText("Prenesi iz CalcuQuote");
                         showNotification("Preneseno: " + trenutenListKomponent.size() + " komponent", false);
+                        loading.setVisible(false);
                     });
                 } catch (Exception ex) {
                     System.out.println(">>> EXCEPTION: " + ex.getClass().getName() + ": " + ex.getMessage());
@@ -325,13 +331,14 @@ public class MainView extends VerticalLayout {
                         showNotification("Napaka: " + ex.getMessage(), true);
                         buttonCQ.setEnabled(true);
                         buttonCQ.setText("Prenesi iz CalcuQuote");
+                        loading.setVisible(false);
                     });
                 }
             }).start();
         });
-        VerticalLayout avtomatskiVnos = new VerticalLayout(textRFQ, buttonCQ);
+        VerticalLayout avtomatskiVnos = new VerticalLayout(textRFQ, buttonCQ, loading);
         avtomatskiVnos.setSpacing(false);
-        avtomatskiVnos.getStyle().set("gap", "5px");
+        avtomatskiVnos.getStyle().set("gap", "10px");
         avtomatskiVnos.setPadding(false);
         avtomatskiVnos.getStyle().set("padding-left", "80px");
 
@@ -518,7 +525,7 @@ public class MainView extends VerticalLayout {
 
 
 
-        grid.setHeight("470px");
+        grid.setHeight("465px");
 
         VerticalLayout section = new VerticalLayout(gridNaslov, statsText, grid);
         section.setPadding(true);
