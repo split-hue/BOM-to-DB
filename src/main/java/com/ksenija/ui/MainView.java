@@ -246,7 +246,10 @@ public class MainView extends VerticalLayout {
                         query -> bomService.searchIzdelek(query.getFilter().orElse(""), 30).size()
                 )
         );
-        imeIzdelka.addCustomValueSetListener(e -> customImeIzdelka = e.getDetail());
+        imeIzdelka.addCustomValueSetListener(e -> {
+            customImeIzdelka = e.getDetail(); // Save what the user typed
+            refreshGrid();                   // Re-run validation to enable button
+        });
         imeIzdelka.addValueChangeListener(e -> {
             if (e.getValue() != null) customImeIzdelka = null;
             refreshGrid();
@@ -260,16 +263,14 @@ public class MainView extends VerticalLayout {
                 List<BomItem> checked = bomService.checkAgainstDatabase(parsed);
 
                 ui.access(() -> {
-                    trenutenListKomponent = checked;
-                    warningsShow = false;
+                    this.trenutenListKomponent = checked;
+                    this.warningsShow = false;
                     refreshGrid();
                     showNotification("Datoteka naložena: " + trenutenListKomponent.size() + " komponent", false);
                 });
 
             } catch (Exception e) {
-                ui.access(() ->
-                        showNotification("! Napaka: " + e.getMessage(), true)
-                );
+                ui.access(() -> showNotification("! Napaka: " + e.getMessage(), true));
             }
         };
 
@@ -571,25 +572,28 @@ public class MainView extends VerticalLayout {
 
         grid.setItems(trenutenListKomponent);
 
-        long inDb       = trenutenListKomponent.stream().filter(BomItem::isExistsInDb).count();
-        long newItems   = trenutenListKomponent.size() - inDb;
+        // 1. IMPROVED NAME VALIDATION
+        // Check if EITHER a product is selected from the dropdown OR a custom name was typed
+        boolean nameEntered = (imeIzdelka.getValue() != null) ||
+                (customImeIzdelka != null && !customImeIzdelka.trim().isEmpty());
+
+        long inDb = trenutenListKomponent.stream().filter(BomItem::isExistsInDb).count();
         long missingDesignators = trenutenListKomponent.stream()
                 .filter(i -> i.getDesignator() == null || i.getDesignator().isEmpty())
                 .count();
-
         long mismatches = trenutenListKomponent.stream().filter(BomItem::isDesignatorMismatch).count();
+
+        // Update stats text
         statsText.setText("Skupaj: " + trenutenListKomponent.size()
                 + "   V bazi: " + inDb
-                + "   Novih: " + newItems
-                + (mismatches > 0 ? "   Vrstic za popraviti (ne ujemanje Kol. z Designatorji): " + mismatches : ""));
+                + (mismatches > 0 ? "   Napake: " + mismatches : ""));
 
-
+        // 2. APPLY THE FIX TO THE BUTTON
         importButton.setEnabled(
                 !trenutenListKomponent.isEmpty()
-                        && !imeIzdelka.isEmpty()
+                        && nameEntered        // Using the new check here
                         && missingDesignators == 0
                         && mismatches == 0
-                        //&& neizbrani == 0             //to če češ da na začetku ni izbrana nubena (sam dej poj tm prefixe zameni na null pa to)
         );
 
         if (!warningsShow && trenutenListKomponent != null) {

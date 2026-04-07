@@ -4,7 +4,7 @@ import com.ksenija.classification.ClassificationService;
 import com.ksenija.model.BomItem;
 import com.ksenija.model.Kosovnica;
 import com.ksenija.model.MaticniPodatek;
-import com.vaadin.pro.licensechecker.Product;
+import com.ksenija.model.MaticniPodatekMisc;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Service;
@@ -35,7 +35,7 @@ public class BomService {
     @PersistenceContext                     // tells Spring to inject it automatically. Everything we persist/flush/query goes through this.
     private EntityManager entityManager;    // JPA object that talks to the DB
 
-                                            // Constructor injection - Spring sees the constructor, finds the matching beans, and injects them.
+    // Constructor injection - Spring sees the constructor, finds the matching beans, and injects them.
 
     private final TranslatorService translatorService;
     private final ClassificationService classificationService;
@@ -72,16 +72,16 @@ public class BomService {
     public List<BomItem> checkAgainstDatabase(List<BomItem> items) {
         items = deduplicatByMpn(items); // 1) preveri za duplikate MPNjev v Excelu
 
-                                        // 1. nabere vse MPNje
+        // 1. nabere vse MPNje
         List<String> mpnList = items.stream()
                 .map(BomItem::getMpn)
                 .filter(mpn -> mpn != null && !mpn.isEmpty())
                 .collect(Collectors.toList());
 
-                                        // 2. prever DB k vrne ALL matches za en MPN
+        // 2. prever DB k vrne ALL matches za en MPN
         Map<String, List<MaticniPodatek>> dbMap = findAllByMpnList(mpnList);
 
-                                        // 3. update items
+        // 3. update items
         for (BomItem item : items) {
             String mpn = item.getMpn() != null ? item.getMpn().trim() : "";
             List<MaticniPodatek> matches = dbMap.getOrDefault(mpn, List.of());
@@ -180,15 +180,18 @@ public class BomService {
      * Runs in its own transaction ({@code REQUIRES_NEW}).
      * If anything fails, the entire import is rolled back (no partial data is written in DB).
      * <p>
-     * Three phases:
+     * Four phases:
      * <ol>
      *   <li>Create the parent assembly article in table MaticniPodatki</li>
      *   <li>Create new component articles for items not yet in the database</li>
      *   <li>Write Kosovnica rows linking the assembly to each component</li>
+     *   <li>Write MaticniPodatkiMISC rows: lead qty ({@code MPM_VrednostNUM01})
+     *       and Kosovnica row ID ({@code MPM_VrednostINT01}) per component</li>
      * </ol>
      *
      * @param items         reviewed and validated list of BOM components
      * @param productName   name of the assembly (auto-prefixed with "sest. ")
+     * @param obstojecaSifra existing assembly MpSifra, or {@code null} to create a new one
      * @return              {@link ImportResult} with counts and a log of what was created
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
@@ -257,9 +260,7 @@ public class BomService {
             product.setMpSifProdSkup(5);
             product.setMpIntrastat(0);
             product.setMpBrutoTeza(null);
-            product.setMpKolNar(0);
-            product.setMpZaokKolNar(0);
-            entityManager.persist(product); // VNESE => DB (persist() stages it for insert — not written to DB yet, that happens at flush())
+            entityManager.persist(product); //persist() stages it for insert (še ne piše v DB) to se zgodi pr flush()
 
             result.setProductSifra(productSifra);
             result.setProductName(fullProductName);
@@ -285,7 +286,7 @@ public class BomService {
                     + " desc='" + item.getDescription() + "'"
                     + " taxonomy='" + item.getTaxonomy() + "'");
 
-                // Classify component for MpOznKlas and MpOzBlagSkup
+            // Classify component for MpOznKlas and MpOzBlagSkup
             ClassificationService.Classification cls =
                     classificationService.classify(item.getDescription(), item.getMpn(), item.getTaxonomy());
 
@@ -335,9 +336,7 @@ public class BomService {
             art.setMpSifProdSkup(5);
             art.setMpIntrastat(0);
             art.setMpBrutoTeza(null);
-            art.setMpKolNar(item.getLQty());
-            art.setMpZaokKolNar(item.getLQty());        // mogoče rabmo kako drugače zaokrožiti?? :)
-            entityManager.persist(art);                 // VNESE new comp. => DB
+            entityManager.persist(art);
 
             newArticleMap.put(item.getMpn(), nextSifra);
             result.addLog(":D Nov artikel: " + item.getNazivSlo()
@@ -347,11 +346,11 @@ public class BomService {
         result.setCreatedCount(newArticleMap.size());
         result.addLog(":D :)) Ustvarjenih novih artiklov: " + newArticleMap.size());
 
-            // Flush articles before Kosovnica inserts (FK dependency) !!! sends ALL staged persist() calls to the database as SQL INSERTs
+        // Flush articles before Kosovnica inserts (FK dependency) !!! sends ALL staged persist() calls to the database as SQL INSERTs
         entityManager.flush();
         System.out.println("=== ARTICLES FLUSHED, starting Kosovnica inserts ===");
 
-                                    // ---3. Write Kosovnica rows---vvv KOSOVNICA
+        // ---3. Write Kosovnica rows---vvv KOSOVNICA
         int koStZapisa     = getNextKoStZapisa();
         int seqNum         = 1;
         int kosovnicaCount = 0;
@@ -419,13 +418,27 @@ public class BomService {
 
             entityManager.persist(kos);
 
+                    // napiš MaticniPodatkiMISC vrsto za to komp.
+                    // MPM_VrednostNUM01 = lead qty (odgorki)
+                    // MPM_VrednostINT01 = KoStZapisa od Kosovnica vrstice zgori
+            if (item.getLQty() != null && item.getLQty() > 0) {
+                MaticniPodatekMisc misc = new MaticniPodatekMisc();
+                misc.setMpmIdMpm(getNextMpmIdMpm());
+                misc.setMpmMpSifra(0);  //vse so 0 v DB (componentSifra bi blo logično tho)
+                misc.setMpmVrednostNum01(item.getLQty().doubleValue());
+                misc.setMpmVrednostInt01(koStZapisa);
+                entityManager.persist(misc);
+                System.out.println("MaticniPodatkiMISC: sifMp=" + componentSifra
+                        + " lqty=" + item.getLQty() + " koStZapisa=" + koStZapisa);
+            }
+
             koStZapisa++;
             seqNum++;
             kosovnicaCount++;
         }
 
         result.setKosovnicaCount(kosovnicaCount);
-        result.addLog("✓ Vneseno v kosovnico: " + kosovnicaCount + " vrstic");
+        result.addLog("Vneseno v kosovnico: " + kosovnicaCount + " vrstic (+ MaticniPodatkiMISC za odgorke)");
 
         return result;
     }
@@ -509,6 +522,27 @@ public class BomService {
         }
     }
 
+    /**
+     * Returns the next available MPM_ID_MPM from MaticniPodatkiMISC.
+     * Increments until it finds a value not already present in the DB.
+     *
+     * @return next safe, unused MPM_ID_MPM
+     */
+    private int getNextMpmIdMpm() {
+        Object max = entityManager
+                .createNativeQuery("SELECT ISNULL(MAX(MPM_ID_MPM), 0) FROM MaticniPodatkiMISC")
+                .getSingleResult();
+        int candidate = ((Number) max).intValue() + 1;
+
+        while (true) {
+            Long count = (Long) entityManager
+                    .createQuery("SELECT COUNT(m) FROM MaticniPodatekMisc m WHERE m.mpmIdMpm = :id")
+                    .setParameter("id", candidate)
+                    .getSingleResult();
+            if (count == 0) return candidate;
+            candidate++;
+        }
+    }
 
     /**
      * Safely truncates a string to the given maximum length, that
