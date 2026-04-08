@@ -3,6 +3,7 @@ package com.ksenija.service;
 import com.ksenija.model.BomItem;
 import com.ksenija.model.Kosovnica;
 import com.ksenija.model.MaticniPodatek;
+import com.ksenija.model.MaticniPodatekMisc;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.AfterEach;
@@ -30,16 +31,23 @@ public class BomImportTest {
     private EntityManager entityManager;
 
     //-------jih tracka d ajih poj uhka pobriše
-    private final List<Integer> createdMpSifraList = new ArrayList<>();
+    private final List<Integer> createdMpSifraList    = new ArrayList<>();
     private final List<Integer> createdKoNadSifraList = new ArrayList<>();
+    private final List<Integer> createdMpmIdList      = new ArrayList<>(); // za MaticniPodatkiMISC cleanup
 
 
 
     //-------cleanup
     @AfterEach
-    //@Transactional
     void cleanup() {
         new org.springframework.transaction.support.TransactionTemplate(transactionManager).execute(status -> {
+            for (Integer mpmId : createdMpmIdList) {
+                int izbrisano = entityManager
+                        .createQuery("DELETE FROM MaticniPodatekMisc m WHERE m.mpmIdMpm = :id")
+                        .setParameter("id", mpmId)
+                        .executeUpdate();
+                System.out.println("CLEANUP: zbrisu " + izbrisano + " MaticniPodatkiMISC rows for id=" + mpmId);
+            }
             for (Integer nadSifra : createdKoNadSifraList) {
                 int izbrisano = entityManager
                         .createQuery("DELETE FROM Kosovnica k WHERE k.koNadSifMp = :sifra")
@@ -54,6 +62,7 @@ public class BomImportTest {
                         .executeUpdate();
                 System.out.println("CLEANUP: zbrisu " + izbrisano + " MaticniPodatek rows for sifra=" + sifra);
             }
+            createdMpmIdList.clear();
             createdMpSifraList.clear();
             createdKoNadSifraList.clear();
             return null;
@@ -76,9 +85,11 @@ public class BomImportTest {
         return item;
     }
 
-
-
-
+    private BomItem newItemWithLqty(String mpn, String description, double qty, String designatorji, int lqty) {
+        BomItem item = newItem(mpn, description, qty, designatorji);
+        item.setLQty(lqty);
+        return item;
+    }
 
 
     //********************************************TESTI******************************************************************************
@@ -130,7 +141,6 @@ public class BomImportTest {
 
 
 
-//********************************|
     @Test
     void vecItemov(){
         List<BomItem> items = List.of(
@@ -288,6 +298,126 @@ public class BomImportTest {
                 .setParameter("sifra", testSifra)
                 .getResultList();
         assertEquals(1, rows.size(), "kosovnica mora met 1 vrsto");
+    }
+
+
+    //********************************************MISC TESTI*************************************************************************
+
+    /**
+     * Verifies that a MISC row is written for a component with lqty > 0,
+     * with NUM01 = lqty and INT01 = KoStZapisa of that component's Kosovnica row.
+     */
+    @Test
+    void misc_lqtySeShraniVMisc() {
+        BomItem item = newItemWithLqty("TEST-MISC-001", "Resistor 0402 10K", 2.0, "R1,R2", 100);
+
+        BomService.ImportResult rezultat = bomService.importBom(List.of(item), "TEST-MISC - lqty shranjeno", null);
+
+        createdKoNadSifraList.add(rezultat.getProductSifra());
+        createdMpSifraList.add(rezultat.getProductSifra());
+        entityManager
+                .createQuery("SELECT m FROM MaticniPodatek m WHERE m.mpKupcOznaka = :mpn", MaticniPodatek.class)
+                .setParameter("mpn", "TEST-MISC-001").getResultList()
+                .forEach(k -> createdMpSifraList.add(k.getMpSifra()));
+
+        // najdi Kosovnica vrstico za ta item
+        List<Kosovnica> kosovnica = entityManager
+                .createQuery("SELECT k FROM Kosovnica k WHERE k.koNadSifMp = :sifra", Kosovnica.class)
+                .setParameter("sifra", rezultat.getProductSifra())
+                .getResultList();
+        assertEquals(1, kosovnica.size(), "kosovnica mora met 1 vrsto");
+        int pricakovaniKoStZapisa = kosovnica.getFirst().getKoStZapisa();
+
+        // najdi MISC vrstico po INT01 (koStZapisa)
+        List<MaticniPodatekMisc> miscVrstice = entityManager
+                .createQuery("SELECT m FROM MaticniPodatekMisc m WHERE m.mpmVrednostInt01 = :koSt", MaticniPodatekMisc.class)
+                .setParameter("koSt", pricakovaniKoStZapisa)
+                .getResultList();
+        miscVrstice.forEach(m -> createdMpmIdList.add(m.getMpmIdMpm()));
+
+        assertEquals(1, miscVrstice.size(), "ena MISC vrstica mora obstajat!");
+        assertEquals(100.0, miscVrstice.getFirst().getMpmVrednostNum01(), "lqty (NUM01) mora bit 100!");
+        assertEquals(pricakovaniKoStZapisa, miscVrstice.getFirst().getMpmVrednostInt01(), "INT01 mora ujemati KoStZapisa!");
+    }
+
+
+    /**
+     * Verifies that NO MISC row is written when lqty is 0 or null.
+     */
+    @Test
+    void misc_brezLqty_niMiscVrstice() {
+        BomItem item = newItem("TEST-MISC-002", "Capacitor 0805 100nF", 1.0, "C1"); // lqty ni nastavljen
+
+        BomService.ImportResult rezultat = bomService.importBom(List.of(item), "TEST-MISC - brez lqty", null);
+
+        createdKoNadSifraList.add(rezultat.getProductSifra());
+        createdMpSifraList.add(rezultat.getProductSifra());
+        entityManager
+                .createQuery("SELECT m FROM MaticniPodatek m WHERE m.mpKupcOznaka = :mpn", MaticniPodatek.class)
+                .setParameter("mpn", "TEST-MISC-002").getResultList()
+                .forEach(k -> createdMpSifraList.add(k.getMpSifra()));
+
+        List<Kosovnica> kosovnica = entityManager
+                .createQuery("SELECT k FROM Kosovnica k WHERE k.koNadSifMp = :sifra", Kosovnica.class)
+                .setParameter("sifra", rezultat.getProductSifra())
+                .getResultList();
+        int koStZapisa = kosovnica.getFirst().getKoStZapisa();
+
+        List<MaticniPodatekMisc> miscVrstice = entityManager
+                .createQuery("SELECT m FROM MaticniPodatekMisc m WHERE m.mpmVrednostInt01 = :koSt", MaticniPodatekMisc.class)
+                .setParameter("koSt", koStZapisa)
+                .getResultList();
+
+        assertEquals(0, miscVrstice.size(), "brez lqty ne sme bit nobene MISC vrstice!");
+    }
+
+
+    /**
+     * Verifies that with multiple components, each gets its own MISC row linked to its
+     * own KoStZapisa, with the correct lqty. They must not share or swap values.
+     */
+    @Test
+    void misc_vecKomponent_vsakDobiSvojoMiscVrstico() {
+        BomItem item1 = newItemWithLqty("TEST-MISC-003", "Resistor 0402 1K",   2.0, "R1,R2",    50);
+        BomItem item2 = newItemWithLqty("TEST-MISC-004", "Capacitor 0603 1uF", 3.0, "C1,C2,C3", 200);
+
+        BomService.ImportResult rezultat = bomService.importBom(
+                List.of(item1, item2), "TEST-MISC - vec komponent", null);
+
+        createdKoNadSifraList.add(rezultat.getProductSifra());
+        createdMpSifraList.add(rezultat.getProductSifra());
+        for (String mpn : List.of("TEST-MISC-003", "TEST-MISC-004")) {
+            entityManager
+                    .createQuery("SELECT m FROM MaticniPodatek m WHERE m.mpKupcOznaka = :mpn", MaticniPodatek.class)
+                    .setParameter("mpn", mpn).getResultList()
+                    .forEach(k -> createdMpSifraList.add(k.getMpSifra()));
+        }
+
+        // kosovnica vrstici (urejeni po KoStZapisa = vrstni red inserta)
+        List<Kosovnica> kosovnica = entityManager
+                .createQuery("SELECT k FROM Kosovnica k WHERE k.koNadSifMp = :sifra ORDER BY k.koStZapisa", Kosovnica.class)
+                .setParameter("sifra", rezultat.getProductSifra())
+                .getResultList();
+        assertEquals(2, kosovnica.size(), "2 kosovnica vrstici morata bit");
+
+        int koSt1 = kosovnica.get(0).getKoStZapisa();
+        int koSt2 = kosovnica.get(1).getKoStZapisa();
+
+        // MISC za item1
+        List<MaticniPodatekMisc> misc1 = entityManager
+                .createQuery("SELECT m FROM MaticniPodatekMisc m WHERE m.mpmVrednostInt01 = :koSt", MaticniPodatekMisc.class)
+                .setParameter("koSt", koSt1).getResultList();
+        misc1.forEach(m -> createdMpmIdList.add(m.getMpmIdMpm()));
+        assertEquals(1, misc1.size(), "item1 mora met 1 MISC vrstico");
+        assertEquals(50.0, misc1.getFirst().getMpmVrednostNum01(), "item1 lqty mora bit 50");
+
+        // MISC za item2
+        List<MaticniPodatekMisc> misc2 = entityManager
+                .createQuery("SELECT m FROM MaticniPodatekMisc m WHERE m.mpmVrednostInt01 = :koSt", MaticniPodatekMisc.class)
+                .setParameter("koSt", koSt2).getResultList();
+        misc2.forEach(m -> createdMpmIdList.add(m.getMpmIdMpm()));
+        assertEquals(1, misc2.size(), "item2 mora met 1 MISC vrstico");
+        assertEquals(200.0, misc2.getFirst().getMpmVrednostNum01(), "item2 lqty mora bit 200");
     }
 
 }
