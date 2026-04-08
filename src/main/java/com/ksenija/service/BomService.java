@@ -427,6 +427,7 @@ public class BomService {
                 misc.setMpmMpSifra(0);  //vse so 0 v DB (componentSifra bi blo logično tho)
                 misc.setMpmVrednostNum01(item.getLQty().doubleValue());
                 misc.setMpmVrednostInt01(koStZapisa);
+                misc.setMpmNamen("FIXIZM");
                 entityManager.persist(misc);
                 System.out.println("MaticniPodatkiMISC: sifMp=" + componentSifra
                         + " lqty=" + item.getLQty() + " koStZapisa=" + koStZapisa);

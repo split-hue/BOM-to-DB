@@ -42,6 +42,12 @@ public class MaticniPodatekMisc {
     @Column(name = "MPM_VrednostINT01")
     private Integer mpmVrednostInt01;
 
+    /**
+     * Have to store this as default 'FIXIZM'
+     */
+    @Column(name = "MPM_Namen")
+    private String mpmNamen;
+
     // =========================================================
     // Getters and Setters
     // =========================================================
@@ -57,4 +63,7 @@ public class MaticniPodatekMisc {
 
     public Integer getMpmVrednostInt01() { return mpmVrednostInt01; }
     public void setMpmVrednostInt01(Integer v) { this.mpmVrednostInt01 = v; }
+
+    public String getMpmNamen() { return mpmNamen;}
+    public void setMpmNamen(String mpmNamen) { this.mpmNamen = mpmNamen;}
 }
