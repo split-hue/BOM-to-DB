@@ -174,7 +174,7 @@ public class MainView extends VerticalLayout {
 
         Tooltip info = Tooltip.forComponent(infoIcon)
                 .withText("CalcuQuote > (RFQ List) 'B' > Actions > Reports > Download")
-                .withPosition(Tooltip.TooltipPosition.BOTTOM_END);
+                .withPosition(Tooltip.TooltipPosition.END_TOP);
         TooltipConfiguration.setDefaultFocusDelay(0);
         TooltipConfiguration.setDefaultHoverDelay(0);
         TooltipConfiguration.setDefaultHideDelay(200);
@@ -289,6 +289,15 @@ public class MainView extends VerticalLayout {
         textRFQ.setPlaceholder("Quote ID (npr. 373)");
         textRFQ.setWidth("200px");
 
+        Icon infoNapaka = VaadinIcon.INFO_CIRCLE.create();
+        infoNapaka.getStyle().set("cursor", "pointer");
+        Tooltip info = Tooltip.forComponent(infoNapaka)
+                .withText("V primeru težav odpri CalcuQuote in ga osveži.")
+                .withPosition(Tooltip.TooltipPosition.END_TOP);
+        TooltipConfiguration.setDefaultFocusDelay(0);
+        TooltipConfiguration.setDefaultHoverDelay(0);
+        TooltipConfiguration.setDefaultHideDelay(200);
+
         Button buttonCQ = new Button("Prenesi iz CalcuQuote", VaadinIcon.DOWNLOAD.create());
         buttonCQ.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
 
@@ -337,7 +346,11 @@ public class MainView extends VerticalLayout {
                 }
             }).start();
         });
-        VerticalLayout avtomatskiVnos = new VerticalLayout(textRFQ, buttonCQ, loading);
+        HorizontalLayout rfqVrsta = new HorizontalLayout(textRFQ, infoNapaka);
+        rfqVrsta.setAlignItems(FlexComponent.Alignment.CENTER);
+        rfqVrsta.setSpacing(true);
+
+        VerticalLayout avtomatskiVnos = new VerticalLayout(rfqVrsta, buttonCQ, loading);
         avtomatskiVnos.setSpacing(false);
         avtomatskiVnos.getStyle().set("gap", "10px");
         avtomatskiVnos.setPadding(false);
@@ -349,6 +362,7 @@ public class MainView extends VerticalLayout {
         horizontalnoZgorej.setAlignItems(FlexComponent.Alignment.START);
         horizontalnoZgorej.setPadding(true);
         horizontalnoZgorej.getStyle().set("padding-left", "20px");
+        avtomatskiVnos.getStyle().set("padding-right", "0px");
 
         return horizontalnoZgorej;
     }
