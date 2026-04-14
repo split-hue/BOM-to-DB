@@ -16,7 +16,9 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 public class CalcuQuoteService {
@@ -49,20 +51,66 @@ public class CalcuQuoteService {
         options.setExperimentalOption("prefs", prefs);
 
         ChromeDriver driver = new ChromeDriver(options);
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(20));
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(40));
 
         try {
+            // 0. LOGIN user-agent,headless bypass op.
+            options.addArguments("--headless=new");
+            options.addArguments("--no-sandbox");
+            options.addArguments("--disable-dev-shm-usage");
+            options.addArguments("--window-size=1920,1080");
+            options.addArguments("--disable-blink-features=AutomationControlled");
+            options.addArguments("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36");
+            options.setExperimentalOption("excludeSwitches", List.of("enable-automation"));
+            options.setExperimentalOption("useAutomationExtension", false);
+
             // 1. LOGIN
             driver.get(loginUrl);
-            wait.until(ExpectedConditions.elementToBeClickable(By.id("username"))).sendKeys(username);
-            driver.findElement(By.id("password")).sendKeys(password);
-            driver.findElement(By.id("password")).sendKeys(Keys.RETURN);
+            wait.until(ExpectedConditions.or(
+                    ExpectedConditions.urlContains("panel.calcuquote.com"),
+                    ExpectedConditions.urlContains("Account/Login")
+            ));
 
-            wait.until(ExpectedConditions.urlContains("panel.calcuquote.com"));
+            if (Objects.requireNonNull(driver.getCurrentUrl()).contains("Account/Login")) {
+                // SCREENSHOT 1
+                //File scr1 = driver.getScreenshotAs(OutputType.FILE);
+                //Files.copy(scr1.toPath(), Path.of("C:/logs/1-login-page.png"), StandardCopyOption.REPLACE_EXISTING);
+
+                WebElement usernameField = wait.until(ExpectedConditions.elementToBeClickable(By.id("username")));
+                usernameField.clear();
+
+                ((JavascriptExecutor) driver).executeScript(
+                        "arguments[0].value = arguments[1];", usernameField, username
+                );
+                ((JavascriptExecutor) driver).executeScript(
+                        "arguments[0].dispatchEvent(new Event('input', { bubbles: true }));", usernameField
+                );
+                ((JavascriptExecutor) driver).executeScript(
+                        "arguments[0].dispatchEvent(new Event('change', { bubbles: true }));", usernameField
+                );
+
+                //usernameField.sendKeys(username);
+                driver.findElement(By.id("password")).clear();
+                driver.findElement(By.id("password")).sendKeys(password);
+
+                // SCREENSHOT 2 - po vnosu credentialov
+                //File scr2 = driver.getScreenshotAs(OutputType.FILE);
+                //Files.copy(scr2.toPath(), Path.of("C:/logs/2-credentials-entered.png"), StandardCopyOption.REPLACE_EXISTING);
+
+                driver.findElement(By.id("btnlogin")).click();
+                Thread.sleep(5000);
+
+                // SCREENSHOT 3 - po kliku
+                //File scr3 = driver.getScreenshotAs(OutputType.FILE);
+                //Files.copy(scr3.toPath(), Path.of("C:/logs/3-after-click.png"), StandardCopyOption.REPLACE_EXISTING);
+
+                wait.until(ExpectedConditions.urlContains("panel.calcuquote.com"));
+            }
             waitForOverlay(wait);
 
             // 1.2 Klik na ikono aplikacije
             safeClick(driver, wait, By.cssSelector("i.application-icon"));
+
             waitForOverlay(wait);
 
             // 1.3 Klik na RFQ list
