@@ -29,6 +29,15 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <profiles>
+        <profile>
+            <id>produkcijski</id>
+            <properties>
+                <env>produkcijski</env>
+            </properties>
+        </profile>
+    </profiles>
     
     <dependencies>
         <dependency>
@@ -128,4 +137,5 @@
             <url>https://maven.vaadin.com/vaadin-addons</url>
         </repository>
     </repositories>
+
 </project>
