@@ -38,23 +38,23 @@ public class ComponentDetector {
             return ComponentType.LEPILO;
 
 
-        if (t.contains("resistor") || t.contains("res /") || t.contains("upor") ||
-                t.contains("resc") || t.contains("res-smd") ||          // taxonomy keywords
-                matchesPattern(descPart, "\\b(crcw|erjm|erj|rc0|rc1|crgp|wsl|pwr)") || // MPN prefixes
-                matchesPattern(t, "\\d+[,.]?\\d*\\s*(kohm|mohm|ohm|[mkrR]\\b)") ||
+        if ((t.contains("resistor") || t.contains("res /") || t.contains("upor") ||
+                t.contains("resc") || t.contains("res-smd") ||
+                matchesPattern(descPart, "\\b(crcw|erjm|erj|rc0|rc1|crgp|wsl|pwr)") ||
+                matchesPattern(t, "\\b\\d+[,.]?\\d*\\s*(kohm|mohm|ohm|[kKmM]Ω)\\b|\\b\\d+[kKmM]\\b|\\b\\d{1,4}[rR]\\b") ||
                 matchesPattern(t, "[rR]\\d{4}\\b") ||
-                (t.contains("thick film") && t.contains("ohm")))
+                (t.contains("thick film") && t.contains("ohm"))) && !matchesPattern(t, "\\d+[,.]?\\d*\\s*(pf|nf|uf|µf)\\b"))
             return ComponentType.RESISTOR;
 
 
         if (t.contains("capacitor") || t.contains("konde") ||
-                matchesPattern(t, "\\d+[,.]?\\d*\\s*[uµnp]f\\b"))
+                matchesPattern(t, "\\d+[,.]?\\d*\\s*(pf|nf|uf|µf)\\b"))
             return ComponentType.CAPACITOR;
 
 
-        if (t.startsWith("led") || t.contains("leds - smd") || t.contains("standard led") ||
-                t.contains("dioda led") || t.contains("led dioda") ||
-                matchesPattern(descPart, "\\b(tlms)\\d+"))  // Vishay LEDs
+        if (t.contains("leds - smd") || t.contains("standard led") ||
+                t.contains("dioda led") || t.contains("led dioda") || (t.contains("led") && !t.contains("oled")) ||
+                matchesPattern(descPart, "\\b(tlms)\\d+"))
             return ComponentType.LED;
 
 
@@ -76,7 +76,7 @@ public class ComponentDetector {
                 t.contains("regulator") || t.contains("controller") || t.contains("amplifier") ||
                 t.contains("converter") || t.contains("microcontroller") || t.contains("memory") ||
                 t.contains("comparator") || t.contains("transceiver") ||
-                matchesPattern(descPart, "\\b(sn74|74hc|74ls|74ac|tle|xmc|stm32|pic|atmega|attiny|lm|lt|tl|mc|ad|max|ncp|mcp|drv|ina|opa)"))
+                matchesPattern(descPart, "\\b(sn74|74hc|74ls|74ac|tle|xmc|stm32|pic|atmega|attiny|lm|lt|tl|mc|ad|max|ncp|mcp|drv|ina|opa)[a-z0-9\\-]*\\b"))
             return ComponentType.IC;
 
 
